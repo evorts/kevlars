@@ -1,0 +1,69 @@
+app:
+  name: "sample_app"
+  version: "1.0.0"
+  port: 9999
+  graceful_timeout: 30 # in seconds
+  healthcheck:
+    health: true # /health
+    metrics: true # /health/metrics
+    dependencies: true # /health/dependencies
+  log:
+    level: 4 # // 0 = PANIC, 1 = FATAL, 2 = ERROR, 3 = WARN, 4 = INFO, 5 = DEBUG, 6 = TRACE
+    use_local_tz: true # use default Asia/Jakarta
+
+#### Open Telemetry Section ####
+telemetry:
+  name: "simple_app"
+  tracing:
+    enabled: true
+    body_tracing_enabled: true
+    skip_endpoints:
+      - "/health"
+      - "/health/metrics"
+      - "/health/dependencies"
+    providers:
+      - "standard" # using OTLP format
+    standard:
+      address: "http://localhost:14268/api/traces"
+  metrics:
+    enabled: false
+    providers:
+      - "datadog"
+    datadog:
+      sample_rate: 1.0
+      address: "dd-agent:8125"
+
+#### GRPC Client ####
+grpc:
+  name: "grpc_client"
+  telemetry_enabled: true
+  metric_enabled: true
+  services:
+    - name: "sample_grpc_service"
+      service_url: ""
+      log_request_payload: true
+      log_request_payload_in_json: true
+      circuit_breaker:
+        timeout: 10000 #general timeout
+
+#### Databases Section ####
+dbs:
+  default:
+    max_open_connection: 50
+    max_idle_connection: 30
+    telemetry_enabled: true
+
+#### Queue Section ####
+queues:
+
+#### Scheduler [Multiple] Section ####
+schedulers:
+  default: # this config will be used when using StartAsDaemon
+    pattern: ""
+    support_seconds: false
+    enabled: true
+  sample_schedule:
+    pattern: ""
+    support_seconds: false
+    enabled: true
+

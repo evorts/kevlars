@@ -116,7 +116,7 @@ func (m *manager) ensureTableExist() error {
 
 	_, err := m.db.Exec(ctx, builder.String())
 	if err == nil {
-		_, _ = m.db.Exec(ctx, `ALTER TABLE audit_log ADD INDEX(action), ADD INDEX(created_by_id), ADD INDEX(created_at)`)
+		_, _ = m.db.Exec(ctx, `ALTER TABLE `+table+` ADD INDEX(action), ADD INDEX(created_by_id), ADD INDEX(created_at)`)
 	}
 	return err
 }

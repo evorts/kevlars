@@ -13,7 +13,6 @@ import (
 	"github.com/evorts/kevlars/logger"
 	"github.com/evorts/kevlars/telemetry"
 	"github.com/evorts/kevlars/utils"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"time"
@@ -64,10 +63,7 @@ func (g *grpcClientManager) connect() error {
 	}
 	unaryInterceptors := make([]grpc.UnaryClientInterceptor, 0)
 	utils.IfTrueThen(g.telemetryEnabled, func() {
-		unaryInterceptors = append(unaryInterceptors, otelgrpc.UnaryClientInterceptor(), GrpcTraceInterceptor(g.tm.Tracer()))
-		opts = append(opts,
-			grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
-		)
+		unaryInterceptors = append(unaryInterceptors, GrpcTraceInterceptor(g.tm.Tracer()))
 	})
 	utils.IfTrueThen(g.logRequestPayload, func() {
 		unaryInterceptors = append(unaryInterceptors, GrpcLogRequestPayloadInterceptor(g.logRequestPayloadInJson, g.log.InfoWithProps))

@@ -2,7 +2,27 @@
 #testonly: False
 with-expecter: True
 packages:
+  github.com/evorts/kevlars/algo:
+    config:
+      all: False
+      include-regex: ".*Manager$"
+      recursive: True
+      filename: "mock_{{.InterfaceNameLower}}.go"
+      dir: ./mocks/{{ replaceAll .InterfaceDirRelative "internal" "internal_"}}
+      mockname: "{{.InterfaceName}}"
+      outpkg: "{{.PackageName}}"
+      inpackage: False
   github.com/evorts/kevlars/audit:
+    config:
+      all: False
+      include-regex: ".*Manager$"
+      recursive: True
+      filename: "mock_{{.InterfaceNameLower}}.go"
+      dir: ./mocks/{{ replaceAll .InterfaceDirRelative "internal" "internal_"}}
+      mockname: "{{.InterfaceName}}"
+      outpkg: "{{.PackageName}}"
+      inpackage: False
+  github.com/evorts/kevlars/config:
     config:
       all: False
       include-regex: ".*Manager$"
@@ -32,6 +52,26 @@ packages:
       mockname: "{{.InterfaceName}}"
       outpkg: "{{.PackageName}}"
       inpackage: False
+  github.com/evorts/kevlars/rpc:
+    config:
+      all: False
+      include-regex: ".*Manager$"
+      recursive: True
+      filename: "mock_{{.InterfaceNameLower}}.go"
+      dir: ./mocks/{{ replaceAll .InterfaceDirRelative "internal" "internal_"}}
+      mockname: "{{.InterfaceName}}"
+      outpkg: "{{.PackageName}}"
+      inpackage: False
+  github.com/evorts/kevlars/scheduler:
+    config:
+      all: False
+      include-regex: ".*Manager$"
+      recursive: True
+      filename: "mock_{{.InterfaceNameLower}}.go"
+      dir: ./mocks/{{ replaceAll .InterfaceDirRelative "internal" "internal_"}}
+      mockname: "{{.InterfaceName}}"
+      outpkg: "{{.PackageName}}"
+      inpackage: False
   github.com/evorts/kevlars/telemetry:
     config:
       all: False
@@ -43,6 +83,16 @@ packages:
       outpkg: "{{.PackageName}}"
       inpackage: False
   github.com/evorts/kevlars/ts:
+    config:
+      all: False
+      include-regex: ".*Manager$"
+      recursive: True
+      filename: "mock_{{.InterfaceNameLower}}.go"
+      dir: ./mocks/{{ replaceAll .InterfaceDirRelative "internal" "internal_"}}
+      mockname: "{{.InterfaceName}}"
+      outpkg: "{{.PackageName}}"
+      inpackage: False
+  github.com/evorts/kevlars/validation:
     config:
       all: False
       include-regex: ".*Manager$"

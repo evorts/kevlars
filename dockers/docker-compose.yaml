@@ -1,0 +1,414 @@
+services:
+  ### Storage ###
+  postgres:
+    image: "postgres:16"
+    container_name: "postgres_db"
+    # When POSTGRESQL_USERNAME is specified, the postgres user is not assigned a password and as a result you cannot
+    # log in remotely to the PostgreSQL server as the postgres user.
+    # If you still want to have access with the user postgres,
+    # please set the POSTGRESQL_PASSWORD environment variable
+    environment:
+      - POSTGRES_USER=[user]
+      - POSTGRES_PASSWORD=[Password]
+      - POSTGRES_DB=[db]
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - storage
+  mariadb:
+    image: "mariadb:10.10.2"
+    container_name: "mariadb"
+    environment:
+      - MARIADB_USER=[user]
+      - MARIADB_PASSWORD=[password]
+      - MARIADB_ROOT_PASSWORD=[root_password]
+      - MARIADB_DATABASE=[db]
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - storage
+      - apps
+  mysql:
+    image: "bitnami/mysql:8.0.19"
+    container_name: "mysql_db"
+    platform: "linux/amd64"
+    environment:
+      - MYSQL_USER=[user]
+      - MYSQL_PASSWORD=[password]
+      - MYSQL_ROOT_PASSWORD=[root_password]
+      - MYSQL_DATABASE=[db]
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    deploy:
+      resources:
+        limits:
+          memory: 1000m
+    networks:
+      - storage
+      - apps
+  redis:
+    image: "redis:7.0"
+    container_name: "redis_cache"
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - storage
+      - apps
+  mongodb:
+    image: "mongo:6.0.3"
+    container_name: "mongodb"
+    restart: always
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_logs:/var/log/mongodb
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=[user]
+      - MONGO_INITDB_ROOT_PASSWORD=[password]
+    ports:
+      - "27017:27017"
+    networks:
+      - storage
+      - apps
+  gcs_emulator:
+    image: "oittaa/gcp-storage-emulator:v2022.06.11"
+    container_name: "gcs_emulator"
+    volumes:
+      - type: bind
+        source: ./gcs
+        target: /storage
+    ports:
+      - "8882:8080"
+  ### QUEUE ###
+  queue_nats:
+    image: "nats:2"
+    container_name: "nats_queue"
+    environment:
+      - NATS_ENABLE_AUTH=yes
+      - NATS_USERNAME=[user]
+      - NATS_PASSWORD=[password]
+    ports:
+      - "4222:4222"
+      - "6222:6222"
+      - "8222:8222"
+    networks:
+      - apps
+  ### Search Engine ###
+  elasticsearch:
+    image: "docker.elastic.co/elasticsearch/elasticsearch:8.9.1"
+    container_name: "elasticsearch"
+    restart: always
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    environment:
+      - http.host=0.0.0.0
+      - transport.host=0.0.0.0
+      - xpack.security.enabled=false
+      - xpack.monitoring.enabled=false
+      - cluster.name=elasticsearch
+      - bootstrap.memory_lock=true
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile: 65536
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - apps
+  ### Code Quality Scanning ###
+  sonarqube:
+    image: "sonarqube:lts-community"
+    container_name: "sonarqube"
+    ports:
+      - "9000:9000"
+  sonar_scanner:
+    image: "sonarsource/sonar-scanner-cli:4.7"
+    container_name: "sonar-scanner"
+    environment:
+      - SONAR_HOST_URL=${SONAR_HOST:-http://localhost:9000}
+      - SONAR_SCANNER_OPTS="-Dsonar.projectKey=${SONAR_KEY:-} -Xmx512m"
+      - SONAR_LOGIN="myAuthenticationToken"
+    volumes:
+      - "${REPO_DIR:-.}:/usr/src"
+  ### IAM ###
+  keycloak:
+    image: "quay.io/keycloak/keycloak:20.0.5"
+    container_name: "keycloak"
+    command:
+      - "start-dev"
+    depends_on:
+      - mysql
+    environment:
+      - KEYCLOAK_ADMIN=[admin]
+      - KEYCLOAK_ADMIN_PASSWORD=[admin_password]
+      - KC_HEALTH_ENABLED=true
+      - KC_METRICS_ENABLED=true
+      - KC_DB=mysql
+      - KC_DB_USERNAME=[user]
+      - KC_DB_PASSWORD=[password]
+      - KC_DB_URL=jdbc:mysql://mysql_db:3306/keycloak_db?parseTime=true
+    ports:
+      - "8080:8080"
+    networks:
+      - storage
+      - apps
+  ldap:
+    image: "osixia/openldap:1.5.0"
+    container_name: "openldap"
+    environment:
+      - LDAP_ORGANISATION=[example]
+      - LDAP_DOMAIN=[example.org]
+      - LDAP_ADMIN_USERNAME=[admin]
+      - LDAP_ADMIN_PASSWORD=[admin_password]
+      #- LDAP_USERS=ldap_custom_usr1,ldap_custom_usr2
+      #- LDAP_PASSWORDS=ldap_custom_pwd1,ldap_custom_pwd2
+      #- LDAP_OPENLDAP_UID=
+      #- LDAP_OPENLDAP_GID=
+    volumes:
+      - openldap_data:/var/lib/ldap
+      - openldap_config:/etc/ldap/slapd.d
+    ports:
+      - "389:389"
+      - "636:636"
+    networks:
+      - apps
+      - storage
+  ### Mocks ###
+  imposter:
+    image: "outofcoffee/imposter-all:3.7.1"
+    container_name: "mock_server"
+    volumes:
+      - type: bind
+        source: ../../mock-service
+        target: /opt/imposter/config
+    ports:
+      - "8881:8080"
+    networks:
+      - apps
+  ### Monitoring ###
+  kibana:
+    image: "docker.elastic.co/kibana/kibana:8.9.1"
+    container_name: "kibana"
+    restart: always
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    environment:
+      - http.host=0.0.0.0
+      - transport.host=0.0.0.0
+      - xpack.security.enabled=false
+      - xpack.monitoring.enabled=false
+      - cluster.name=elasticsearch
+      - bootstrap.memory_lock=true
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile: 65536
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - apps
+  jaeger:
+    image: "jaegertracing/all-in-one:1.49.0"
+    container_name: "jaeger"
+    environment:
+      - COLLECTOR_ZIPKIN_HTTP_PORT=9411
+    command:
+      - "--collector.otlp.enabled=true"
+    #5775	UDP	agent	accept zipkin.thrift over compact thrift protocol
+    #6831	UDP	agent	accept jaeger.thrift over compact thrift protocol
+    #6832	UDP	agent	accept jaeger.thrift over binary thrift protocol
+    #5778	HTTP	agent	serve configs
+    #16686	HTTP	query	serve frontend
+    #14268	HTTP	collector	accept jaeger.thrift directly from clients
+    #9411	HTTP	collector	Zipkin compatible endpoint
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "4318:4318"
+      - "5778:5778"
+      - "16686:16686"
+      - "14268:14268"
+      - "14269:14269"
+      - "9411:9411"
+  datadog:
+    image: "gcr.io/datadoghq/agent:7"
+    container_name: "datadog_agent"
+    pid: host
+    environment:
+      - DD_API_KEY=[api_key]
+      - DD_SITE=datadoghq.com
+      - DD_LOGS_ENABLED=true
+    ports:
+      - 8126:8126
+      - 8125:8125
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    links:
+      - redis
+    networks:
+      - storage
+      - metric
+  ### SFTP Server ###
+  sftp:
+    # Tip: you can use atmoz/makepasswd to generate encrypted passwords:
+    # echo -n "your-password" | docker run -i --rm atmoz/makepasswd --crypt-md5 --clearfrom=-
+    image: "atmoz/sftp"
+    container_name: "sftp_server"
+    platform: "linux/amd64"
+    ports:
+      - 2222:22
+    networks:
+      - storage
+    volumes:
+      - ./sftp/users.conf:/etc/sftp/users.conf:ro
+      - ./sftp/share:/home
+  ### API Gateway ###
+  krakend:
+    image: "devopsfaith/krakend:2.1"
+    container_name: "krakend_api_gateway"
+    networks:
+      - api_gateway
+  kong:
+    image: "kong:3.1"
+    container_name: "kong_api_gateway"
+    networks:
+      - api_gateway
+  konga:
+    image: "pantsel/konga:0.14.9"
+    container_name: "kong_ui"
+  tyk_gateway:
+    image: tykio/tyk-gateway:v4.3.0
+    container_name: "tyk_gateway"
+    ports:
+      - 8180:8080
+    networks:
+      - api_gateway
+    platform: linux/arm64/v8
+    volumes:
+      - ./tyk/tyk.standalone.conf:/opt/tyk-gateway/tyk.conf
+      - ./tyk/apps:/opt/tyk-gateway/apps
+      - ./tyk/middleware:/opt/tyk-gateway/middleware
+      - ./tyk/certs:/opt/tyk-gateway/certs
+    environment:
+      - TYK_GW_SECRET=[Secret]
+    depends_on:
+      - redis
+  gravitee_gateway:
+    build:
+      context: "https://raw.githubusercontent.com/gravitee-io/gravitee-access-management/3.19.4/docker/gateway/Dockerfile"
+      args:
+        - GRAVITEEAM_VERSION=3.19.4
+    image: "gravitee-gateway-arm64:3.19.4"
+    container_name: "gravitee_gateway"
+    restart: always
+    ports:
+      - "8092:8092"
+      - "8082:8082"
+    depends_on:
+      - mongodb
+      - elasticsearch
+    volumes:
+      - ./gravitee/logs/gateway:/opt/graviteeio-gateway/logs
+    environment:
+      - gravitee_management_mongodb_uri=mongodb://mongodb:27017/gravitee?serverSelectionTimeoutMS=5000&connectTimeoutMS=5000&socketTimeoutMS=5000
+      - gravitee_ratelimit_mongodb_uri=mongodb://mongodb:27017/gravitee?serverSelectionTimeoutMS=5000&connectTimeoutMS=5000&socketTimeoutMS=5000
+      - gravitee_reporters_elasticsearch_endpoints_0=http://elasticsearch:9200
+    networks:
+      - api_gateway
+  gravitee_mgt_api:
+    build:
+      context: "https://raw.githubusercontent.com/gravitee-io/gravitee-access-management/3.19.4/docker/management-api/Dockerfile"
+      args:
+        - GRAVITEEAM_VERSION=3.19.4
+    image: "gravitee-mgt-api-arm64:3"
+    container_name: "gravitee_mgt_api"
+    restart: always
+    ports:
+      - "8093:8093"
+      - "8083:8083"
+    links:
+      - mongodb
+      - elasticsearch
+    depends_on:
+      - mongodb
+      - elasticsearch
+    environment:
+      - gravitee_management_mongodb_uri=mongodb://mongodb:27017/gravitee?serverSelectionTimeoutMS=5000&connectTimeoutMS=5000&socketTimeoutMS=5000
+      - gravitee_analytics_elasticsearch_endpoints_0=http://elasticsearch:9200
+    volumes:
+      - ./gravitee/logs/management-api:/opt/graviteeio-management-api/logs
+      - ./gravitee/mgt_api/config.yml:/opt/graviteeio-management-api/config/gravitee.yml
+    networks:
+      - api_gateway
+  gravitee_mgt_ui:
+    build:
+      context: "gravitee/mgt_ui"
+      dockerfile: "Dockerfile"
+      args:
+        - GRAVITEEAM_VERSION=3.19.4
+    image: "gravitee-mgt-ui-arm64:3"
+    container_name: "gravitee_mgt_ui"
+    restart: always
+    ports:
+      - "8084:8080"
+    links:
+      - mongodb
+      - elasticsearch
+    depends_on:
+      - gravitee_mgt_api
+    environment:
+      #- MGMT_API_URL=http://localhost:8093/management/organizations/DEFAULT/environments/DEFAULT/
+      - MGMT_API_URL=http://localhost:8093
+    volumes:
+      - ./gravitee/logs/management-ui:/var/log/nginx
+    networks:
+      - apps
+volumes:
+  postgresql_data:
+    driver: local
+  mariadb_data:
+    driver: local
+  mysql_data:
+    driver: local
+  mysql_data_818:
+    driver: local
+  redis_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  mongodb_logs:
+    driver: local
+  openldap_data:
+    driver: local
+  openldap_config:
+    driver: local
+  elasticsearch_data:
+    driver: local
+networks:
+  apps:
+    driver: "bridge"
+    name: apps
+  storage:
+    name: storage

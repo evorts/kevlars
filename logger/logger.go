@@ -16,13 +16,14 @@ import (
 type LogLevel int
 
 const (
-	LogLevelDebug = 1
-	LogLevelInfo  = 2
-	LogLevelWarn  = 3
-	LogLevelError = 4
-	LogLevelOFF   = 5
-	LogLevelPanic = 6
-	LogLevelFatal = 7
+	LogLevelPanic LogLevel = iota
+	LogLevelFatal
+	LogLevelError
+	LogLevelWarn
+	LogLevelInfo
+	LogLevelDebug
+	LogLevelTrace
+	LogLevelOff
 )
 
 func ParseLevel(value string) LogLevel {
@@ -30,42 +31,35 @@ func ParseLevel(value string) LogLevel {
 	if err != nil {
 		return LogLevelError
 	}
-	switch l {
-	case logrus.DebugLevel:
-		return LogLevelDebug
-	case logrus.InfoLevel:
-		return LogLevelInfo
-	case logrus.WarnLevel:
-		return LogLevelWarn
-	case logrus.TraceLevel:
-		return LogLevelDebug
-	case logrus.FatalLevel:
-		return LogLevelFatal
-	case logrus.ErrorLevel:
-		fallthrough
-	default:
-		return LogLevelError
-	}
+	return LogLevel(l)
+}
+
+func (l LogLevel) Id() int {
+	return int(l)
 }
 
 func (l LogLevel) LogRushString() string {
+	return logrus.Level(l).String()
+}
+
+func (l LogLevel) EchoLogLevel() int {
 	switch l {
-	case LogLevelDebug:
-		return logrus.DebugLevel.String()
-	case LogLevelInfo:
-		return logrus.InfoLevel.String()
-	case LogLevelWarn:
-		return logrus.WarnLevel.String()
-	case LogLevelOFF:
-		fallthrough
 	case LogLevelPanic:
-		return logrus.PanicLevel.String()
+		return 6
 	case LogLevelFatal:
-		return logrus.FatalLevel.String()
+		return 7
 	case LogLevelError:
-		fallthrough
+		return 4
+	case LogLevelWarn:
+		return 3
+	case LogLevelInfo:
+		return 2
+	case LogLevelDebug:
+		return 1
+	case LogLevelTrace:
+		return 1
 	default:
-		return logrus.ErrorLevel.String()
+		return 5 // OFF
 	}
 }
 

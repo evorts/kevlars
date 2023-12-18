@@ -47,6 +47,7 @@ type Manager interface {
 
 	Driver() SupportedDriver
 	Ping() error
+	SetTelemetry(tm telemetry.Manager) Manager
 }
 
 type SupportedDriver string
@@ -148,6 +149,11 @@ func (m *manager) Ping() error {
 
 func (m *manager) Driver() SupportedDriver {
 	return m.driver
+}
+
+func (m *manager) SetTelemetry(tm telemetry.Manager) Manager {
+	m.tm = tm
+	return m
 }
 
 func (m *manager) SqlMock() sqlmock.Sqlmock {

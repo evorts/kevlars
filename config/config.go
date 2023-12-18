@@ -176,7 +176,7 @@ func (c *configManager) Init() error {
 		// if failed during load .env file -- there are 2 reasons: invalid format or file not exist
 		// thus fallback to default values
 		_ = os.Setenv("CONFIG_LOCAL_NAME", "config.yaml")
-		_ = os.Setenv("SECRET_LOCAL_NAME", "secret.yaml")
+		_ = os.Setenv("SECRET_LOCAL_NAME", "secrets.yaml")
 		_ = os.Setenv("CONFIG_REMOTE_TYPE", TypeYaml.String())
 		_ = os.Setenv("SECRET_REMOTE_TYPE", TypeYaml.String())
 	}

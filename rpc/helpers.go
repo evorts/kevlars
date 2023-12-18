@@ -11,9 +11,9 @@ package rpc
 import (
 	"context"
 	"encoding/json"
+	"github.com/evorts/kevlars/requests"
 	"github.com/evorts/kevlars/telemetry"
 	"github.com/evorts/kevlars/utils"
-	"github.com/evorts/kevlars/vars"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"time"
@@ -83,7 +83,7 @@ func GrpcLogRequestPayloadInterceptor(inJson bool, logWithProps func(props map[s
 		})
 		logWithProps(map[string]interface{}{
 			"method": method,
-			"req_id": ctx.Value(vars.RequestContextId),
+			"req_id": ctx.Value(requests.ContextId),
 		}, v)
 		iRes := invoker(ctx, method, req, reply, cc, opts...)
 		return iRes
