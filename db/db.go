@@ -15,6 +15,7 @@ import (
 	"github.com/evorts/kevlars/telemetry"
 	"github.com/evorts/kevlars/utils"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/huandu/go-sqlbuilder"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/uptrace/opentelemetry-go-extra/otelsql"
@@ -27,7 +28,7 @@ import (
 type Manager interface {
 	MustConnect(ctx context.Context) Manager
 	Connect(ctx context.Context) error
-	Mock() sqlmock.Sqlmock
+	SqlMock() sqlmock.Sqlmock
 
 	Rebind(query string) string
 
@@ -54,6 +55,17 @@ func (d SupportedDriver) String() string {
 	return string(d)
 }
 
+func (d SupportedDriver) ToSqlBuilderFlavor() sqlbuilder.Flavor {
+	switch d {
+	case DriverPostgreSQL:
+		return sqlbuilder.PostgreSQL
+	case DriverSqlServer:
+		return sqlbuilder.SQLServer
+	default:
+		return sqlbuilder.MySQL
+	}
+}
+
 const (
 	DriverMySQL      SupportedDriver = "mysql"
 	DriverPostgreSQL SupportedDriver = "postgres"
@@ -65,9 +77,10 @@ const (
 type manager struct {
 	db       *sqlx.DB
 	driver   SupportedDriver
+	dialect  string
 	dsn      string
 	mockMode bool
-	mock     sqlmock.Sqlmock
+	sqlMock  sqlmock.Sqlmock
 	scope    string
 
 	maxOpenConnection int
@@ -137,8 +150,8 @@ func (m *manager) Driver() SupportedDriver {
 	return m.driver
 }
 
-func (m *manager) Mock() sqlmock.Sqlmock {
-	return m.mock
+func (m *manager) SqlMock() sqlmock.Sqlmock {
+	return m.sqlMock
 }
 
 func (m *manager) Query(ctx context.Context, query string, args ...interface{}) (*sqlx.Rows, error) {
@@ -222,7 +235,7 @@ func (m *manager) Connect(ctx context.Context) (err error) {
 		//m.db, err = otelsqlx.ConnectContext(ctx, string(m.driver), m.dsn)
 	} else if m.mockMode {
 		var mockDB *sql.DB
-		mockDB, m.mock, err = sqlmock.New()
+		mockDB, m.sqlMock, err = sqlmock.New()
 		m.db = sqlx.NewDb(mockDB, DriverMock.String())
 	} else {
 		m.db, err = sqlx.ConnectContext(ctx, string(m.driver), m.dsn)

@@ -1,0 +1,54 @@
+#file: noinspection SpellCheckingInspection
+#testonly: False
+with-expecter: True
+packages:
+  github.com/evorts/kevlars/audit:
+    config:
+      all: False
+      include-regex: ".*Manager$"
+      recursive: True
+      filename: "mock_{{.InterfaceNameLower}}.go"
+      dir: ./mocks/{{ replaceAll .InterfaceDirRelative "internal" "internal_"}}
+      mockname: "{{.InterfaceName}}"
+      outpkg: "{{.PackageName}}"
+      inpackage: False
+  github.com/evorts/kevlars/db:
+    config:
+      all: False
+      include-regex: ".*Manager$"
+      recursive: True
+      filename: "mock_{{.InterfaceNameLower}}.go"
+      dir: ./mocks/{{ replaceAll .InterfaceDirRelative "internal" "internal_"}}
+      mockname: "{{.InterfaceName}}"
+      outpkg: "{{.PackageName}}"
+      inpackage: False
+  github.com/evorts/kevlars/logger:
+    config:
+      all: False
+      include-regex: ".*Manager$"
+      recursive: True
+      filename: "mock_{{.InterfaceNameLower}}.go"
+      dir: ./mocks/{{ replaceAll .InterfaceDirRelative "internal" "internal_"}}
+      mockname: "{{.InterfaceName}}"
+      outpkg: "{{.PackageName}}"
+      inpackage: False
+  github.com/evorts/kevlars/telemetry:
+    config:
+      all: False
+      include-regex: ".*Manager$"
+      recursive: True
+      filename: "mock_{{.InterfaceNameLower}}.go"
+      dir: ./mocks/{{ replaceAll .InterfaceDirRelative "internal" "internal_"}}
+      mockname: "{{.InterfaceName}}"
+      outpkg: "{{.PackageName}}"
+      inpackage: False
+  github.com/evorts/kevlars/ts:
+    config:
+      all: False
+      include-regex: ".*Manager$"
+      recursive: True
+      filename: "mock_{{.InterfaceNameLower}}.go"
+      dir: ./mocks/{{ replaceAll .InterfaceDirRelative "internal" "internal_"}}
+      mockname: "{{.InterfaceName}}"
+      outpkg: "{{.PackageName}}"
+      inpackage: False

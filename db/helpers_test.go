@@ -27,6 +27,11 @@ func TestHelper_Build(t *testing.T) {
 	filters := Filters{
 		Ands: []FilterItem{
 			{
+				Field: "key",
+				Op:    OpEq,
+				Value: "KEY",
+			},
+			{
 				Field: "status",
 				Op:    OpEq,
 				Value: "SAVED",
@@ -37,6 +42,6 @@ func TestHelper_Build(t *testing.T) {
 	}
 	h := NewHelper(SeparatorAND, WithPagination(1, 10), WithOrdersBy(orders), WithFilters(filters))
 	qf, args := h.BuildSqlAndArgs()
-	assert.Equal(t, []interface{}{"SAVED"}, args, "Arguments test")
-	assert.Equal(t, " (status = ?) ORDER BY Field ASC LIMIT 10 OFFSET 0", qf, "Query filter")
+	assert.Equal(t, []interface{}{"KEY", "SAVED"}, args, "Arguments test")
+	assert.Equal(t, " (key = ? AND status = ?) ORDER BY Field ASC LIMIT 10 OFFSET 0", qf, "Query filter")
 }
