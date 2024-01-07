@@ -116,6 +116,7 @@ func NewApp(opts ...Option) IApplication {
 		restClients: make(map[string]rest.Manager),
 		grpcClients: make(map[string]rpc.ClientManager),
 		soapClients: make(map[string]soap.Manager),
+		metrics:     telemetry.NewMetricNoop(),
 	}
 	app.config = config.New().MustInit()
 	app.name = app.Config().GetString("app.name")

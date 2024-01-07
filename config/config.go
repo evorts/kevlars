@@ -170,7 +170,7 @@ func (c *configManager) Init() error {
 		if v := os.Getenv("ENV_FILE"); len(v) > 0 {
 			return v
 		}
-		return ""
+		return ".env"
 	}())
 	if err != nil {
 		// if failed during load .env file -- there are 2 reasons: invalid format or file not exist
