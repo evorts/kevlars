@@ -7,6 +7,8 @@ A golang backend development kits to accelerate building services.
 Having to write over and over again something like logger, db connection, caching, audit log, rest client, grpc client, telemetry, config/secret, healthcheck, feature flag, and so on. 
 I find it waste a lot of time, while it should be re-usable everywhere in multiple service.
 There-fore come to mind to build a development kits to help me reach that goal.
+During those development process in private, I find it that this might help anyone whom has the same goal as mine. Thus, I decide to make this project open source.
+To anyone using this library and have feedback or would like to contribute, please don't hesitate to do so.
 
 ## Usage
 
