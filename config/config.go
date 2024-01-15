@@ -175,10 +175,18 @@ func (c *configManager) Init() error {
 	if err != nil {
 		// if failed during load .env file -- there are 2 reasons: invalid format or file not exist
 		// thus fallback to default values
-		_ = os.Setenv("CONFIG_LOCAL_NAME", "config.yaml")
-		_ = os.Setenv("SECRET_LOCAL_NAME", "secrets.yaml")
-		_ = os.Setenv("CONFIG_REMOTE_TYPE", TypeYaml.String())
-		_ = os.Setenv("SECRET_REMOTE_TYPE", TypeYaml.String())
+		if v := os.Getenv("CONFIG_LOCAL_NAME"); len(v) < 1 {
+			_ = os.Setenv("CONFIG_LOCAL_NAME", "config.yaml")
+		}
+		if v := os.Getenv("SECRET_LOCAL_NAME"); len(v) < 1 {
+			_ = os.Setenv("SECRET_LOCAL_NAME", "secrets.yaml")
+		}
+		if v := os.Getenv("CONFIG_REMOTE_TYPE"); len(v) < 1 {
+			_ = os.Setenv("CONFIG_REMOTE_TYPE", TypeYaml.String())
+		}
+		if v := os.Getenv("SECRET_REMOTE_TYPE"); len(v) < 1 {
+			_ = os.Setenv("SECRET_REMOTE_TYPE", TypeYaml.String())
+		}
 	}
 	// container configuration in dev, staging or production should be first class citizen
 	envConfigRemoteAddr := os.Getenv("CONFIG_REMOTE_ADDR")

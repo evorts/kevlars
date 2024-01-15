@@ -1,6 +1,6 @@
 module github.com/evortstech/kevlars/examples/simple_rest
 
-go 1.21.1
+go 1.21
 
 require (
 	github.com/evorts/kevlars v0.0.0-20240107061110-850be79a011e
