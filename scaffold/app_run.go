@@ -9,8 +9,6 @@ package scaffold
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"github.com/evorts/kevlars/logger"
 	"github.com/evorts/kevlars/midware"
 	"github.com/evorts/kevlars/requests"
@@ -22,7 +20,6 @@ import (
 	"github.com/labstack/gommon/log"
 	"google.golang.org/grpc"
 	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"time"
@@ -31,6 +28,7 @@ import (
 type IRun interface {
 	Run(run func(a *Application))
 	RunAsDaemon(run func(a *Application))
+	RunUseEcho(run func(app *Application, e *echo.Echo))
 	RunRestApiUseEcho(run func(app *Application, e *echo.Echo))
 	RunGrpcServer(run func(app *Application, rpcServer *grpc.Server))
 }
@@ -47,6 +45,25 @@ func (app *Application) RunAsDaemon(run func(a *Application)) {
 
 func (app *Application) Run(run func(a *Application)) {
 	run(app)
+}
+
+func (app *Application) RunUseEcho(run func(a *Application, e *echo.Echo)) {
+	e := echo.New()
+	e.HideBanner = true
+	e.Debug = app.Config().GetInt("app.log.level") == logger.LogLevelDebug.Id()
+	e.Logger.SetLevel(log.Lvl(logger.LogLevel(app.Config().GetInt("app.log.level")).EchoLogLevel()))
+	// register predefined routes
+	if len(app.routes) > 0 {
+		for _, r := range app.routes {
+			e.Add(r.method, r.path, r.handlerEcho)
+		}
+	}
+	run(app, e)
+	GracefulStart(
+		app.Port(),
+		app.gracefulTimeout,
+		e, app.Log(),
+	)
 }
 
 func (app *Application) RunRestApiUseEcho(run func(a *Application, e *echo.Echo)) {
@@ -123,22 +140,11 @@ func (app *Application) RunRestApiUseEcho(run func(a *Application, e *echo.Echo)
 		}
 	}
 	run(app, e)
-	// Start server
-	go func() {
-		if err := e.Start(fmt.Sprintf(":%d", app.config.GetInt("app.rest_port"))); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			e.Logger.Fatal("shutting down the server.", err)
-		}
-	}()
-	// Wait for interrupt signal to gracefully shut down the server with a timeout of 10 seconds.
-	// Use a buffered channel to avoid missing signals as recommended for signal.Notify
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-	<-quit
-	ctx, cancel := context.WithTimeout(app.startContext, app.gracefulTimeout)
-	defer cancel()
-	if err := e.Shutdown(ctx); err != nil {
-		e.Logger.Fatal(err)
-	}
+	GracefulStart(
+		app.Port(),
+		app.gracefulTimeout,
+		e, app.Log(),
+	)
 }
 
 func (app *Application) RunGrpcServer(run func(app *Application, rpcServer *grpc.Server)) {

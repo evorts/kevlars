@@ -43,6 +43,7 @@ type Application struct {
 	version         string
 	env             string
 	scope           string
+	port            int
 	config          config.Manager
 	startContext    context.Context
 	gracefulTimeout time.Duration // in seconds
@@ -97,6 +98,10 @@ func (app *Application) Env() string {
 	return app.env
 }
 
+func (app *Application) Port() int {
+	return app.port
+}
+
 func (app *Application) Config() config.Manager {
 	return app.config
 }
@@ -127,13 +132,9 @@ func NewApp(opts ...Option) IApplication {
 		}
 		return app.Config().GetString("app.env")
 	}()
+	app.port = app.Config().GetIntOrElse("app.port", 8080)
 	app.startContext = context.Background()
-	app.gracefulTimeout = func() time.Duration {
-		if v := app.Config().GetInt("app.graceful_timeout"); v > 0 {
-			return time.Duration(v) * time.Second
-		}
-		return 5 * time.Second
-	}()
+	app.gracefulTimeout = time.Duration(app.Config().GetIntOrElse("app.graceful_timeout", 10)) * time.Second
 	app.tm = telemetry.NewNoop()
 	for _, opt := range opts {
 		opt.apply(app)

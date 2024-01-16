@@ -28,3 +28,9 @@ func WithScope(v string) Option {
 		app.scope = v
 	})
 }
+
+func WithPortConfigPath(path string) Option {
+	return optionFunc(func(app *Application) {
+		app.port = app.Config().GetInt(path)
+	})
+}
