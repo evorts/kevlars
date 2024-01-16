@@ -46,3 +46,22 @@ For more samples, can refer to directory `examples` in this repository.
 
 ## Structure
 
+### Captcha
+
+This package is used to generate captcha image and validate user input.
+> Note: currently only support generating base64 encoded image.
+
+To use this package, simply import it and use it like below:
+```go
+cb64 := captcha.NewB64(captcha.B64WithType(captcha.B64TypeDigit)).MustInit()
+// generate base 64 image
+// capId => is the captcha id use to validate
+// capImg => base 64 encoded image
+capId, _, capImg := cb64.Generate()
+
+// to verify user input:
+// userInput => should be the variable contains the value of user input
+// capId => use the generated id above
+isValid := cb64.Verify(capId, userInput, true)
+fmt.Println(isValid)
+```
