@@ -1,21 +1,13 @@
 /**
  * @Author: steven
  * @Description:
- * @File: bot
- * @Date: 15/01/24 20.49
+ * @File: sanitizer
+ * @Date: 16/01/24 23.27
  */
 
-package bots
+package messaging
 
-import (
-	"github.com/evorts/kevlars/common"
-	"github.com/microcosm-cc/bluemonday"
-)
-
-type Sender interface {
-	SendMessage(message string) error
-	common.Init[Sender]
-}
+import "github.com/microcosm-cc/bluemonday"
 
 type Sanitizer interface {
 	Sanitize(value string) string

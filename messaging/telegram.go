@@ -5,7 +5,7 @@
  * @Date: 15/01/24 20.52
  */
 
-package bots
+package messaging
 
 import (
 	"bytes"

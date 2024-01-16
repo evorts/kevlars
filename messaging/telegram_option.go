@@ -5,7 +5,7 @@
  * @Date: 15/01/24 21.11
  */
 
-package bots
+package messaging
 
 import (
 	"github.com/evorts/kevlars/common"

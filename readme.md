@@ -65,3 +65,17 @@ capId, _, capImg := cb64.Generate()
 isValid := cb64.Verify(capId, userInput, true)
 fmt.Println(isValid)
 ```
+
+### Messaging
+
+This package is used to send messaging. Currently only support sending message to `telegram`. Will add other provider as things progress.
+To use this package, simply import it and use it like below:
+```go
+tgSender := messaging.NewTelegramSender(
+        messaging.TelegramWithTarget(app.Config().GetString("messaging.telegram.default_target")),
+        messaging.TelegramWithToken(app.Config().GetString("messaging.telegram.token")),
+        messaging.TelegramWithSanitizer(messaging.StandardSanitizer()), 
+    ).MustInit()
+err := tgSender.SendMessage(`hello!`)
+fmt.Println(err)
+```
