@@ -8,6 +8,8 @@
 
 package db
 
+import "github.com/evorts/kevlars/telemetry"
+
 type Option interface {
 	apply(m *manager)
 }
@@ -39,5 +41,17 @@ func WithScope(v string) Option {
 func WithOTelConnect(v bool) Option {
 	return option(func(m *manager) {
 		m.oTelOpenConnect = v
+	})
+}
+
+func WithTelemetry(v telemetry.Manager) Option {
+	return option(func(m *manager) {
+		m.tm = v
+	})
+}
+
+func WithTelemetryEnabled(v bool) Option {
+	return option(func(m *manager) {
+		m.telemetryEnabled = v
 	})
 }

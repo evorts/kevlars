@@ -44,7 +44,32 @@ scaffold.
 ```
 For more samples, can refer to directory `examples` in this repository.
 
-## Structure
+## Package Structure and Usage
+
+### Audit
+This package is used for audit log.
+> Note: currently only support postgres and mysql
+
+Usage as follows:
+```go
+dbm := db.New(
+	db.DriverPostgreSQL, 
+	"host=localhost port=5432 user=db_user password=b4Zd3x6aLRM6mKs2S3 dbname=db_name sslmode=disable", 
+	db.WithMaxOpenConnection(30), 
+)
+al := audit.New(dbm).MustInit()
+err := al.Add(context.Background(), audit.Record{
+	Action: "do_something",
+	CreatedByName: "system",
+	BeforeChanged: map[string]interface{}{
+		"name": "kevlars",
+    },
+	AfterChanged: map[string]interface{}{
+		"name": "shield",
+	}
+})
+fmt.Println(err)
+```
 
 ### Cache
 
@@ -84,6 +109,27 @@ capId, _, capImg := cb64.Generate()
 // capId => use the generated id above
 isValid := cb64.Verify(capId, userInput, true)
 fmt.Println(isValid)
+```
+
+### DB
+
+This package is used to connect to database provider
+> Database supported: `PostgreSQL`, `MySQL` and `SQL Server`
+> 
+> Meanwhile, for SQL Server, it's not fully tested yet -- use at your own risk
+
+Usage:
+```go
+dbm := db.New(
+	db.DriverPostgreSQL, 
+	"host=localhost port=5432 user=db_user password=b4Zd3x6aLRM6mKs2S3 dbname=db_name sslmode=disable", 
+	db.WithMaxOpenConnection(30), 
+)
+rows, err := dbm.Query(context.Background(), "SELECT * FROM users")
+if err != nil {
+	return
+}
+// ... continue your implementation here
 ```
 
 ### Messaging

@@ -16,6 +16,10 @@ import (
 type managerNoop struct {
 }
 
+func (m *managerNoop) Del(ctx context.Context, keys ...string) error {
+	return nil
+}
+
 func (m *managerNoop) MustConnect(ctx context.Context) Manager {
 	return m
 }

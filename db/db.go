@@ -255,8 +255,12 @@ func (m *manager) Connect(ctx context.Context) (err error) {
 	return
 }
 
-func New(driver SupportedDriver, dsn string, telemetryEnabled bool, opts ...Option) Manager {
-	m := &manager{driver: driver, dsn: dsn, telemetryEnabled: telemetryEnabled}
+func New(driver SupportedDriver, dsn string, opts ...Option) Manager {
+	m := &manager{
+		driver: driver,
+		dsn:    dsn,
+		tm:     telemetry.NewNoop(),
+	}
 	for _, opt := range opts {
 		opt.apply(m)
 	}

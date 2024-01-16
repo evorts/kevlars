@@ -70,13 +70,10 @@ func (app *Application) WithDatabases() IApplication {
 		if maxIdleConnection > 0 {
 			opts = append(opts, db.WithMaxIdleConnection(maxIdleConnection))
 		}
-		app.dbs[dbk] = db.New(
-			db.SupportedDriver(driver),
-			dsn, tmEnabled, opts...,
-		)
 		utils.IfTrueThen(tmEnabled, func() {
-			app.dbs[dbk].SetTelemetry(app.Telemetry())
+			opts = append(opts, db.WithTelemetry(app.Telemetry()), db.WithTelemetryEnabled(tmEnabled))
 		})
+		app.dbs[dbk] = db.New(db.SupportedDriver(driver), dsn, opts...)
 		app.dbs[dbk].MustConnect(app.startContext)
 	}
 	return app
