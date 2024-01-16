@@ -11,23 +11,23 @@ package cache
 import "github.com/evorts/kevlars/telemetry"
 
 type Option interface {
-	apply(*manager)
+	apply(*redisManager)
 }
 
-type option func(*manager)
+type option func(*redisManager)
 
-func (o option) apply(m *manager) {
+func (o option) apply(m *redisManager) {
 	o(m)
 }
 
 func WithPrefix(v string) Option {
-	return option(func(m *manager) {
+	return option(func(m *redisManager) {
 		m.prefix = v
 	})
 }
 
 func WithTLSFile(v bool, certFile, keyFile, serverName string) Option {
-	return option(func(m *manager) {
+	return option(func(m *redisManager) {
 		m.useTLS = v
 		m.certFile = certFile
 		m.keyFile = keyFile
@@ -36,7 +36,7 @@ func WithTLSFile(v bool, certFile, keyFile, serverName string) Option {
 }
 
 func WithTLSB64(v bool, certB64, keyB64, serverName string) Option {
-	return option(func(m *manager) {
+	return option(func(m *redisManager) {
 		m.useTLS = v
 		m.certB64 = certB64
 		m.keyB64 = keyB64
@@ -45,13 +45,13 @@ func WithTLSB64(v bool, certB64, keyB64, serverName string) Option {
 }
 
 func WithTelemetry(tm telemetry.Manager) Option {
-	return option(func(m *manager) {
+	return option(func(m *redisManager) {
 		m.tm = tm
 	})
 }
 
 func WithScope(v string) Option {
-	return option(func(m *manager) {
+	return option(func(m *redisManager) {
 		m.scope = v
 	})
 }

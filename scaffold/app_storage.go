@@ -133,7 +133,7 @@ func (app *Application) WithCaches() IApplication {
 			}, func() {
 				opts = append(opts, cache.WithTelemetry(telemetry.NewNoop()))
 			})
-			app.caches[ck] = cache.NewRedisCache(address, pass, dbIdx, opts...)
+			app.caches[ck] = cache.NewRedis(address, pass, dbIdx, opts...)
 		}, func() {
 			app.caches[ck] = cache.NewNoop()
 		})

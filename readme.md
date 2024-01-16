@@ -46,6 +46,26 @@ For more samples, can refer to directory `examples` in this repository.
 
 ## Structure
 
+### Cache
+
+This package is used to cache data.
+> Currently only support redis as cache provider. Will consider add another provider when deemed necessary, since redis has become a goto stack when it comes to caching.
+
+To utilize this package, simply:
+```go
+ctx := context.Background()
+// instantiate with must connect to ensure connection is established else panic
+c := cache.NewRedis(address, password, dbIndex).MustConnect(ctx)
+
+// get value user hash
+uh := c.GetString(ctx, "user_hash")
+fmt.Println(uh)
+
+// delete user hash
+err := c.Del(ctx, "user_hash")
+fmt.Println(err)
+```
+
 ### Captcha
 
 This package is used to generate captcha image and validate user input.
@@ -68,7 +88,9 @@ fmt.Println(isValid)
 
 ### Messaging
 
-This package is used to send messaging. Currently only support sending message to `telegram`. Will add other provider as things progress.
+This package is used to send messaging to selected provider. 
+> Currently only support sending message to `telegram`. Will add other provider as things progress.
+
 To use this package, simply import it and use it like below:
 ```go
 tgSender := messaging.NewTelegramSender(

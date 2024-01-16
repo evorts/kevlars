@@ -30,6 +30,7 @@ type Manager interface {
 	SetString(ctx context.Context, key, value string, expire time.Duration) error
 	Get(ctx context.Context, key string, bindTo interface{}) error
 	GetString(ctx context.Context, key string) string
+	Del(ctx context.Context, keys ...string) error
 
 	HSet(ctx context.Context, key string, value ...interface{}) error
 	HSetWhenNotExist(ctx context.Context, key, field string, value interface{}) error
@@ -43,7 +44,7 @@ type Manager interface {
 	Ping() error
 }
 
-type manager struct {
+type redisManager struct {
 	r *redis.Client
 
 	addr string
@@ -63,11 +64,22 @@ type manager struct {
 	scope string
 }
 
-func (m *manager) injectPrefixWhenDefined(key string) string {
+func (m *redisManager) injectPrefixWhenDefined(key string) string {
 	if len(m.prefix) < 1 {
 		return key
 	}
 	return m.prefix + "_" + key
+}
+
+func (m *redisManager) injectPrefixIntoKeysWhenDefined(keys ...string) []string {
+	if len(m.prefix) < 1 {
+		return keys
+	}
+	rs := make([]string, len(keys))
+	for _, key := range keys {
+		rs = append(rs, m.prefix+"_"+key)
+	}
+	return rs
 }
 
 func wrapTelemetryTuple1[T any](ctx context.Context, tc trace.Tracer, spanName string, spanAttr []trace.SpanStartOption, task func(ctx context.Context) T) T {
@@ -76,7 +88,7 @@ func wrapTelemetryTuple1[T any](ctx context.Context, tc trace.Tracer, spanName s
 	return task(newCtx)
 }
 
-func (m *manager) spanName(v string) string {
+func (m *redisManager) spanName(v string) string {
 	return utils.IfER(len(m.scope) > 0, func() string {
 		return m.scope + ".cache." + v
 	}, func() string {
@@ -84,11 +96,11 @@ func (m *manager) spanName(v string) string {
 	})
 }
 
-func (m *manager) Ping() error {
+func (m *redisManager) Ping() error {
 	return m.r.Ping(context.Background()).Err()
 }
 
-func (m *manager) HSet(ctx context.Context, key string, value ...interface{}) error {
+func (m *redisManager) HSet(ctx context.Context, key string, value ...interface{}) error {
 	return wrapTelemetryTuple1(ctx, m.tm.Tracer(), m.spanName("hset"), []trace.SpanStartOption{
 		trace.WithAttributes(attribute.String("key", key)),
 	}, func(newCtx context.Context) error {
@@ -96,7 +108,7 @@ func (m *manager) HSet(ctx context.Context, key string, value ...interface{}) er
 	})
 }
 
-func (m *manager) HSetWhenNotExist(ctx context.Context, key, field string, value interface{}) error {
+func (m *redisManager) HSetWhenNotExist(ctx context.Context, key, field string, value interface{}) error {
 	return wrapTelemetryTuple1(ctx, m.tm.Tracer(), m.spanName("hset_nx"), []trace.SpanStartOption{
 		trace.WithAttributes(attribute.String("key", key)),
 		trace.WithAttributes(attribute.String("field", field)),
@@ -105,7 +117,7 @@ func (m *manager) HSetWhenNotExist(ctx context.Context, key, field string, value
 	})
 }
 
-func (m *manager) HDel(ctx context.Context, key string, fields ...string) error {
+func (m *redisManager) HDel(ctx context.Context, key string, fields ...string) error {
 	return wrapTelemetryTuple1(ctx, m.tm.Tracer(), m.spanName("hdel"), []trace.SpanStartOption{
 		trace.WithAttributes(attribute.String("key", key)),
 		trace.WithAttributes(attribute.StringSlice("fields", fields)),
@@ -114,7 +126,7 @@ func (m *manager) HDel(ctx context.Context, key string, fields ...string) error 
 	})
 }
 
-func (m *manager) HGet(ctx context.Context, key, field string, bindTo interface{}) error {
+func (m *redisManager) HGet(ctx context.Context, key, field string, bindTo interface{}) error {
 	return wrapTelemetryTuple1(ctx, m.tm.Tracer(), m.spanName("hget"), []trace.SpanStartOption{
 		trace.WithAttributes(attribute.String("key", key)),
 		trace.WithAttributes(attribute.String("field", field)),
@@ -123,7 +135,7 @@ func (m *manager) HGet(ctx context.Context, key, field string, bindTo interface{
 	})
 }
 
-func (m *manager) HGetAll(ctx context.Context, key string, bindTo interface{}) error {
+func (m *redisManager) HGetAll(ctx context.Context, key string, bindTo interface{}) error {
 	return wrapTelemetryTuple1(ctx, m.tm.Tracer(), m.spanName("hgetall"), []trace.SpanStartOption{
 		trace.WithAttributes(attribute.String("key", key)),
 	}, func(newCtx context.Context) error {
@@ -131,7 +143,7 @@ func (m *manager) HGetAll(ctx context.Context, key string, bindTo interface{}) e
 	})
 }
 
-func (m *manager) HMSet(ctx context.Context, key string, values ...interface{}) error {
+func (m *redisManager) HMSet(ctx context.Context, key string, values ...interface{}) error {
 	return wrapTelemetryTuple1(ctx, m.tm.Tracer(), m.spanName("hmset"), []trace.SpanStartOption{
 		trace.WithAttributes(attribute.String("key", key)),
 	}, func(newCtx context.Context) error {
@@ -139,7 +151,7 @@ func (m *manager) HMSet(ctx context.Context, key string, values ...interface{}) 
 	})
 }
 
-func (m *manager) HMGet(ctx context.Context, key, field string, bindTo interface{}) error {
+func (m *redisManager) HMGet(ctx context.Context, key, field string, bindTo interface{}) error {
 	return wrapTelemetryTuple1(ctx, m.tm.Tracer(), m.spanName("hmget"), []trace.SpanStartOption{
 		trace.WithAttributes(attribute.String("key", key)),
 		trace.WithAttributes(attribute.String("field", field)),
@@ -148,7 +160,7 @@ func (m *manager) HMGet(ctx context.Context, key, field string, bindTo interface
 	})
 }
 
-func (m *manager) Set(ctx context.Context, key string, value interface{}) error {
+func (m *redisManager) Set(ctx context.Context, key string, value interface{}) error {
 	return wrapTelemetryTuple1(ctx, m.tm.Tracer(), m.spanName("set"), []trace.SpanStartOption{
 		trace.WithAttributes(attribute.String("key", key)),
 	}, func(newCtx context.Context) error {
@@ -156,7 +168,7 @@ func (m *manager) Set(ctx context.Context, key string, value interface{}) error 
 	})
 }
 
-func (m *manager) SetWhenNotExist(ctx context.Context, key string, value interface{}) error {
+func (m *redisManager) SetWhenNotExist(ctx context.Context, key string, value interface{}) error {
 	return wrapTelemetryTuple1(ctx, m.tm.Tracer(), m.spanName("set_nx"), []trace.SpanStartOption{
 		trace.WithAttributes(attribute.String("key", key)),
 	}, func(newCtx context.Context) error {
@@ -164,7 +176,7 @@ func (m *manager) SetWhenNotExist(ctx context.Context, key string, value interfa
 	})
 }
 
-func (m *manager) SetWithExpire(ctx context.Context, key string, value interface{}, expire time.Duration) error {
+func (m *redisManager) SetWithExpire(ctx context.Context, key string, value interface{}, expire time.Duration) error {
 	return wrapTelemetryTuple1(ctx, m.tm.Tracer(), m.spanName("set_wx"), []trace.SpanStartOption{
 		trace.WithAttributes(attribute.String("key", key)),
 	}, func(newCtx context.Context) error {
@@ -172,7 +184,7 @@ func (m *manager) SetWithExpire(ctx context.Context, key string, value interface
 	})
 }
 
-func (m *manager) SetWithExpireWhenNotExist(ctx context.Context, key string, value interface{}, expire time.Duration) error {
+func (m *redisManager) SetWithExpireWhenNotExist(ctx context.Context, key string, value interface{}, expire time.Duration) error {
 	return wrapTelemetryTuple1(ctx, m.tm.Tracer(), m.spanName("set_wx_nx"), []trace.SpanStartOption{
 		trace.WithAttributes(attribute.String("key", key)),
 	}, func(newCtx context.Context) error {
@@ -180,7 +192,7 @@ func (m *manager) SetWithExpireWhenNotExist(ctx context.Context, key string, val
 	})
 }
 
-func (m *manager) Get(ctx context.Context, key string, bindTo interface{}) error {
+func (m *redisManager) Get(ctx context.Context, key string, bindTo interface{}) error {
 	return wrapTelemetryTuple1(ctx, m.tm.Tracer(), m.spanName("get"), []trace.SpanStartOption{
 		trace.WithAttributes(attribute.String("key", key)),
 	}, func(newCtx context.Context) error {
@@ -188,7 +200,13 @@ func (m *manager) Get(ctx context.Context, key string, bindTo interface{}) error
 	})
 }
 
-func (m *manager) SetString(ctx context.Context, key, value string, expire time.Duration) error {
+func (m *redisManager) Del(ctx context.Context, keys ...string) error {
+	return wrapTelemetryTuple1(ctx, m.tm.Tracer(), m.spanName("del"), []trace.SpanStartOption{}, func(newCtx context.Context) error {
+		return m.r.Del(newCtx, m.injectPrefixIntoKeysWhenDefined(keys...)...).Err()
+	})
+}
+
+func (m *redisManager) SetString(ctx context.Context, key, value string, expire time.Duration) error {
 	return wrapTelemetryTuple1(ctx, m.tm.Tracer(), m.spanName("set_str"), []trace.SpanStartOption{
 		trace.WithAttributes(attribute.String("key", key)),
 	}, func(newCtx context.Context) error {
@@ -197,7 +215,7 @@ func (m *manager) SetString(ctx context.Context, key, value string, expire time.
 	})
 }
 
-func (m *manager) GetString(ctx context.Context, key string) (rs string) {
+func (m *redisManager) GetString(ctx context.Context, key string) (rs string) {
 	return wrapTelemetryTuple1(ctx, m.tm.Tracer(), m.spanName("get_str"), []trace.SpanStartOption{
 		trace.WithAttributes(attribute.String("key", key)),
 	}, func(newCtx context.Context) string {
@@ -209,14 +227,14 @@ func (m *manager) GetString(ctx context.Context, key string) (rs string) {
 	})
 }
 
-func (m *manager) MustConnect(ctx context.Context) Manager {
+func (m *redisManager) MustConnect(ctx context.Context) Manager {
 	if err := m.Connect(ctx); err != nil {
 		panic(err)
 	}
 	return m
 }
 
-func (m *manager) Connect(ctx context.Context) error {
+func (m *redisManager) Connect(ctx context.Context) error {
 	var (
 		tlsConfig *tls.Config
 		err       error
@@ -254,8 +272,8 @@ func (m *manager) Connect(ctx context.Context) error {
 	return m.r.Ping(ctx).Err()
 }
 
-func NewRedisCache(addr, pwd string, db int, opts ...Option) Manager {
-	m := &manager{addr: addr, pwd: pwd, db: db}
+func NewRedis(addr, pwd string, db int, opts ...Option) Manager {
+	m := &redisManager{addr: addr, pwd: pwd, db: db}
 	for _, opt := range opts {
 		opt.apply(m)
 	}
