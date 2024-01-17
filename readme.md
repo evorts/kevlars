@@ -132,6 +132,29 @@ if err != nil {
 // ... continue your implementation here
 ```
 
+### FFlag
+
+This package is used to manage feature flag. Use this on any block of code that you want to be able to turn on/off.
+Sample usage:
+```go
+dbm := db.New(
+    db.DriverPostgreSQL,
+    "host=localhost port=5432 user=db_user password=b4Zd3x6aLRM6mKs2S3 dbname=db_name sslmode=disable",
+    db.WithMaxOpenConnection(30),
+)
+ff := fflag.New(fflag.WithDB(dbm)).MustInit()
+ctx := context.Background()
+ff.Add(ctx, fflag.Record{
+	Feature:"feature_name", 
+	Enabled: true, 
+	LastChangedBy:"who_is_me",
+})
+ff.ExecWhenEnabled(ctx, "feature_name", func() {
+    // this will be executed when feature_name are enabled	
+})
+
+```
+
 ### Messaging
 
 This package is used to send messaging to selected provider. 
