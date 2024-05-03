@@ -71,16 +71,16 @@ err := al.Add(context.Background(), audit.Record{
 fmt.Println(err)
 ```
 
-### Cache
+### In Memory
 
-This package is used to cache data.
-> Currently only support redis as cache provider. Will consider add another provider when deemed necessary, since redis has become a goto stack when it comes to caching.
+This package is used for In Memory data.
+> Currently, supported valkey and redis as provider. Will consider add another provider when deemed necessary.
 
 To utilize this package, simply:
 ```go
 ctx := context.Background()
 // instantiate with must connect to ensure connection is established else panic
-c := cache.NewRedis(address, password, dbIndex).MustConnect(ctx)
+c := inmemory.NewRedis(address).MustConnect(ctx)
 
 // get value user hash
 uh := c.GetString(ctx, "user_hash")
