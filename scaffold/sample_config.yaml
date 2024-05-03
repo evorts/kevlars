@@ -64,8 +64,8 @@ dbs:
     max_idle_connection: 30
     telemetry_enabled: false
 
-#### Caches Section ####
-caches:
+#### In Memory Section ####
+in_memory:
   default:
     enabled: true
     telemetry_enabled: true
