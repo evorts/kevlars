@@ -42,6 +42,16 @@ packages:
       mockname: "{{.InterfaceName}}"
       outpkg: "{{.PackageName}}"
       inpackage: False
+  github.com/evorts/kevlars/inmemory:
+    config:
+      all: False
+      include-regex: ".*Manager$"
+      recursive: True
+      filename: "mock_{{.InterfaceNameLower}}.go"
+      dir: ./mocks/{{ replaceAll .InterfaceDirRelative "internal" "internal_"}}
+      mockname: "{{.InterfaceName}}"
+      outpkg: "{{.PackageName}}"
+      inpackage: False
   github.com/evorts/kevlars/logger:
     config:
       all: False
