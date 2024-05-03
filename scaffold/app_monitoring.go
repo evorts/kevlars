@@ -136,8 +136,8 @@ func (app *Application) healthDependenciesEchoHandler(c echo.Context) error {
 		status string
 	}
 	result := map[string][]deps{
-		DbKey.String():    make([]deps, 0),
-		CacheKey.String(): make([]deps, 0),
+		DbKey.String():       make([]deps, 0),
+		InMemoryKey.String(): make([]deps, 0),
 	}
 	utils.IfTrueThen(app.HasDB(), func() {
 		for dbk, dbm := range app.dbs {
@@ -148,8 +148,8 @@ func (app *Application) healthDependenciesEchoHandler(c echo.Context) error {
 		}
 	})
 	utils.IfTrueThen(app.HasInMemory(), func() {
-		for ck, cm := range app.caches {
-			result[CacheKey.String()] = append(result[CacheKey.String()], deps{
+		for ck, cm := range app.in_memories {
+			result[InMemoryKey.String()] = append(result[InMemoryKey.String()], deps{
 				name:   ck,
 				status: utils.IfER(cm.Ping() == nil, func() string { return health.OK }, func() string { return health.NOK }),
 			})

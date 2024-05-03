@@ -45,9 +45,9 @@ func (e EnvKey) String() string {
 type Key string
 
 const (
-	DbKey     Key = "db"
-	CacheKey  Key = "cache"
-	StatusKey Key = "status"
+	DbKey       Key = "db"
+	InMemoryKey Key = "in_memory"
+	StatusKey   Key = "status"
 )
 
 func (k Key) String() string {
