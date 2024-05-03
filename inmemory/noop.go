@@ -6,7 +6,7 @@
  * @Date: 12/09/23 11.12
  */
 
-package cache
+package inmemory
 
 import (
 	"context"

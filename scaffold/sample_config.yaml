@@ -1,16 +1,18 @@
 app:
   name: "sample_app"
   version: "1.0.0"
-  rest_port: 9999
-  grpc_port: 8899
-  graceful_timeout: 30 # in seconds
+  port:
+    rest: 9999
+    grpc: 8899
+  graceful_timeout: "30s"
   healthcheck:
     health: true # /health
     metrics: true # /health/metrics
     dependencies: true # /health/dependencies
   log:
     level: 4 # // 0 = PANIC, 1 = FATAL, 2 = ERROR, 3 = WARN, 4 = INFO, 5 = DEBUG, 6 = TRACE
-    use_local_tz: true # use default Asia/Jakarta
+    tz: "Asia/Jakarta"
+    use_local_tz: true # default to Asia/Jakarta
 
 #### Open Telemetry Section ####
 telemetry:

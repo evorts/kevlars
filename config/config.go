@@ -34,6 +34,7 @@ type Manager interface {
 	GetMapArray(key string) []map[string]interface{}
 	GetTime(key string) time.Time
 	GetDuration(key string) time.Duration
+	GetDurationOrElse(key string, elseValue time.Duration) time.Duration
 	UnmarshalTo(key string, to interface{}) error
 	IsSet(key string) bool
 	AllSettings() map[string]interface{}
@@ -154,6 +155,14 @@ func (c *configManager) GetTime(key string) time.Time {
 
 func (c *configManager) GetDuration(key string) time.Duration {
 	return c.v.GetDuration(key)
+}
+
+func (c *configManager) GetDurationOrElse(key string, elseValue time.Duration) time.Duration {
+	d := c.v.GetDuration(key)
+	if d < 1 {
+		return elseValue
+	}
+	return d
 }
 
 func (c *configManager) IsSet(key string) bool {

@@ -47,32 +47,34 @@ func (app *Application) Metrics() telemetry.MetricsManager {
 
 func (app *Application) withLogger() IApplication {
 	// 0 = PANIC, 1 = FATAL, 2 = ERROR, 3 = WARN, 4 = INFO, 5 = DEBUG, 6 = TRACE
-	logLevel := app.Config().GetInt("app.log.level")
-	if logLevel < 1 || logLevel > 7 {
+	logLevel := app.Config().GetInt(AppLogLevel.String())
+	if !utils.NumberInRange(logLevel, logger.LogLevelPanic.Id(), logger.LogLevelOff.Id()) {
 		logLevel = logger.LogLevelError.Id()
 	}
 	svc := []string{app.name}
-	if len(app.env) > 0 {
+	utils.IfTrueThen(len(app.Env()) > 0, func() {
 		svc = append(svc, app.env)
-	}
-	if len(app.version) > 0 {
+	})
+	utils.IfTrueThen(len(app.Version()) > 0, func() {
 		svc = append(svc, app.version)
-	}
-	if len(app.scope) > 0 {
+	})
+	utils.IfTrueThen(len(app.Scope()) > 0, func() {
 		svc = append(svc, app.scope)
-	}
+	})
 	opts := []logger.Option{
 		logger.WithServiceName(strings.Join(svc, ".")),
 	}
-	if app.Config().GetBool("app.log.use_local_tz") {
-		opts = append(opts, logger.WithTZTimeFormatter(ts.DefaultTimeZone))
-	}
+	utils.IfTrueThen(app.Config().GetBool(AppLogUseCustomTimezone.String()), func() {
+		if v := app.Config().GetString(AppLogTimezone.String()); len(v) > 0 {
+			opts = append(opts, logger.WithTZTimeFormatter(ts.TimeZone(v)))
+		}
+	})
 	app.log = logger.NewLogger(logger.LogLevel(logLevel), os.Stdout, opts...)
 	return app
 }
 
 func (app *Application) withHealthcheck() IApplication {
-	if app.Config().GetBool("app.healthcheck.health") {
+	if app.Config().GetBool(AppHealth.String()) {
 		app.routes = append(app.routes,
 			route{
 				method:      http.MethodGet,
@@ -81,7 +83,7 @@ func (app *Application) withHealthcheck() IApplication {
 			},
 		)
 	}
-	if app.Config().GetBool("app.healthcheck.metrics") {
+	if app.Config().GetBool(AppMetric.String()) {
 		app.health = health.New(
 			health.Health{
 				Version: app.version,
@@ -98,7 +100,7 @@ func (app *Application) withHealthcheck() IApplication {
 			},
 		)
 	}
-	if app.Config().GetBool("app.healthcheck.dependencies") {
+	if app.Config().GetBool(AppDependencies.String()) {
 		app.routes = append(app.routes, route{
 			method:      http.MethodGet,
 			path:        "/health/dependencies",
@@ -134,20 +136,20 @@ func (app *Application) healthDependenciesEchoHandler(c echo.Context) error {
 		status string
 	}
 	result := map[string][]deps{
-		"db":    make([]deps, 0),
-		"cache": make([]deps, 0),
+		DbKey.String():    make([]deps, 0),
+		CacheKey.String(): make([]deps, 0),
 	}
 	utils.IfTrueThen(app.HasDB(), func() {
 		for dbk, dbm := range app.dbs {
-			result["db"] = append(result["db"], deps{
+			result[DbKey.String()] = append(result[DbKey.String()], deps{
 				name:   dbk,
 				status: utils.IfER(dbm.Ping() == nil, func() string { return health.OK }, func() string { return health.NOK }),
 			})
 		}
 	})
-	utils.IfTrueThen(app.HasCache(), func() {
+	utils.IfTrueThen(app.HasInMemory(), func() {
 		for ck, cm := range app.caches {
-			result["cache"] = append(result["cache"], deps{
+			result[CacheKey.String()] = append(result[CacheKey.String()], deps{
 				name:   ck,
 				status: utils.IfER(cm.Ping() == nil, func() string { return health.OK }, func() string { return health.NOK }),
 			})
@@ -165,5 +167,5 @@ func (app *Application) healthDependenciesEchoHandler(c echo.Context) error {
 // @Success      200  {object} map[string]string
 // @Router       /health [get]
 func (app *Application) healthEchoHandler(c echo.Context) error {
-	return c.JSON(http.StatusOK, map[string]string{"status": "OK"})
+	return c.JSON(http.StatusOK, map[string]string{StatusKey.String(): "OK"})
 }

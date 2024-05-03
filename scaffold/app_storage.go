@@ -8,8 +8,8 @@
 package scaffold
 
 import (
-	"github.com/evorts/kevlars/cache"
 	"github.com/evorts/kevlars/db"
+	"github.com/evorts/kevlars/inmemory"
 	"github.com/evorts/kevlars/telemetry"
 	"github.com/evorts/kevlars/utils"
 )
@@ -20,10 +20,10 @@ type IStorage interface {
 	HasDB() bool
 	DefaultDB() db.Manager
 
-	WithCaches() IApplication
-	Cache(ke string) cache.Manager
-	HasCache() bool
-	DefaultCache() cache.Manager
+	WithInMemories() IApplication
+	InMemory(key string) inmemory.Manager
+	HasInMemory() bool
+	DefaultInMemory() inmemory.Manager
 }
 
 func (app *Application) WithDatabases() IApplication {
@@ -94,23 +94,26 @@ func (app *Application) DefaultDB() db.Manager {
 	return app.DB(DefaultKey)
 }
 
-func (app *Application) WithCaches() IApplication {
+func (app *Application) WithInMemories() IApplication {
 	// get configuration for multi database
 	// expected result as follows:
 	// {
-	//	 "default":{"enabled":"[value]","address":"","creds":"","db":[bool]},
-	//	 "other":{"enabled":"[value]","address":"","creds":"","db":[bool]}
+	//	 "default":{"provider":"valkey","enabled":"[value]","address":"","creds":"","db":[bool]},
+	//	 "other":{"provider":"redis","enabled":"[value]","address":"","creds":"","db":[bool]}
 	//	}
-	caches := app.config.GetStringMap("caches")
-	if len(caches) < 1 {
-		panic("there's no caches configuration found")
+	inMemories := app.config.GetStringMap("in_memory")
+	if len(inMemories) < 1 {
+		panic("there's no in memory configuration found")
 	}
-	for ck, cv := range caches {
+	for ck, cv := range inMemories {
 		cItem, ok := cv.(map[string]interface{})
 		if !ok {
 			continue
 		}
-		address, pass, dbIdx, enabled, tmEnabled := "", "", 0, true, false
+		provider, address, pass, dbIdx, enabled, tmEnabled := "", "", "", 0, true, false
+		if v, exist := cItem["provider"]; exist {
+			provider, _ = v.(string)
+		}
 		if v, exist := cItem["address"]; exist {
 			address, _ = v.(string)
 		}
@@ -123,33 +126,60 @@ func (app *Application) WithCaches() IApplication {
 		if v, exist := cItem["telemetry_enabled"]; exist {
 			tmEnabled, _ = v.(bool)
 		}
-		utils.IfE(enabled, func() {
-			opts := make([]cache.Option, 0)
-			utils.IfE(tmEnabled, func() {
-				opts = append(opts, cache.WithTelemetry(app.Telemetry()))
-			}, func() {
-				opts = append(opts, cache.WithTelemetry(telemetry.NewNoop()))
-			})
-			app.caches[ck] = cache.NewRedis(address, pass, dbIdx, opts...)
-		}, func() {
-			app.caches[ck] = cache.NewNoop()
+		utils.IfTrueThen(!inmemory.ValidProvider(provider), func() {
+			provider = inmemory.ProviderValKey.String()
 		})
-		app.caches[ck].MustConnect(app.startContext)
+		utils.IfE(enabled, func() {
+			utils.IfE(provider == inmemory.ProviderRedis.String(), func() {
+				opts := append(
+					inmemory.NewRedisOptions(),
+					inmemory.RedisWithPassword(pass),
+					inmemory.RedisWithDB(dbIdx),
+				)
+				utils.IfE(tmEnabled, func() {
+					opts = append(opts, inmemory.RedisWithTelemetry(app.Telemetry()))
+				}, func() {
+					opts = append(opts, inmemory.RedisWithTelemetry(telemetry.NewNoop()))
+				})
+				app.in_memories[ck] = inmemory.NewRedis(
+					address,
+					opts...,
+				)
+			}, func() {
+				opts := append(
+					inmemory.NewValKeyOptions(),
+					inmemory.ValKeyWithPassword(pass),
+					inmemory.ValKeyWithDB(dbIdx),
+				)
+				utils.IfE(tmEnabled, func() {
+					opts = append(opts, inmemory.ValKeyWithTelemetry(app.Telemetry()))
+				}, func() {
+					opts = append(opts, inmemory.ValKeyWithTelemetry(telemetry.NewNoop()))
+				})
+				app.in_memories[ck] = inmemory.NewValKey(
+					address,
+					opts...,
+				)
+			})
+		}, func() {
+			app.in_memories[ck] = inmemory.NewNoop()
+		})
+		app.in_memories[ck].MustConnect(app.startContext)
 	}
 	return app
 }
 
-func (app *Application) Cache(key string) cache.Manager {
-	if v, ok := app.caches[key]; ok {
+func (app *Application) InMemory(key string) inmemory.Manager {
+	if v, ok := app.in_memories[key]; ok {
 		return v
 	}
 	panic("cache manager with key " + key + " not found")
 }
 
-func (app *Application) HasCache() bool {
-	return len(app.caches) > 0
+func (app *Application) HasInMemory() bool {
+	return len(app.in_memories) > 0
 }
 
-func (app *Application) DefaultCache() cache.Manager {
-	return app.Cache(DefaultKey)
+func (app *Application) DefaultInMemory() inmemory.Manager {
+	return app.InMemory(DefaultKey)
 }

@@ -11,11 +11,11 @@ import (
 	"context"
 	"github.com/evorts/kevlars/algo"
 	"github.com/evorts/kevlars/audit"
-	"github.com/evorts/kevlars/cache"
 	"github.com/evorts/kevlars/config"
 	"github.com/evorts/kevlars/db"
 	"github.com/evorts/kevlars/fflag"
 	"github.com/evorts/kevlars/health"
+	"github.com/evorts/kevlars/inmemory"
 	"github.com/evorts/kevlars/logger"
 	"github.com/evorts/kevlars/rest"
 	"github.com/evorts/kevlars/rpc"
@@ -36,6 +36,7 @@ type IApplication interface {
 	IRemotes
 	IRun
 	IStorage
+	IScheduler
 }
 
 type Application struct {
@@ -43,7 +44,8 @@ type Application struct {
 	version         string
 	env             string
 	scope           string
-	port            int
+	portRest        int
+	portGrpc        int
 	config          config.Manager
 	startContext    context.Context
 	gracefulTimeout time.Duration // in seconds
@@ -66,8 +68,8 @@ type Application struct {
 	schedulers map[string]scheduler.Manager
 
 	// storage
-	dbs    map[string]db.Manager    // multi database
-	caches map[string]cache.Manager // multi cache
+	dbs         map[string]db.Manager       // multi database
+	in_memories map[string]inmemory.Manager // multi cache
 
 	// algorithm
 	similarity algo.SimilarityManager // provider => similarity
@@ -98,8 +100,12 @@ func (app *Application) Env() string {
 	return app.env
 }
 
-func (app *Application) Port() int {
-	return app.port
+func (app *Application) PortRest() int {
+	return app.portRest
+}
+
+func (app *Application) PortGrpc() int {
+	return app.portGrpc
 }
 
 func (app *Application) Config() config.Manager {
@@ -116,26 +122,30 @@ func (app *Application) MaskedHeaders() []string {
 
 func NewApp(opts ...Option) IApplication {
 	app := &Application{
-		caches:      make(map[string]cache.Manager),
-		dbs:         make(map[string]db.Manager),
+		in_memories: make(map[string]inmemory.Manager),
+		dbs: map[string]db.Manager{
+			DefaultKey: db.NewNoop(),
+		},
 		restClients: make(map[string]rest.Manager),
 		grpcClients: make(map[string]rpc.ClientManager),
 		soapClients: make(map[string]soap.Manager),
 		metrics:     telemetry.NewMetricNoop(),
+		tm:          telemetry.NewNoop(),
 	}
 	app.config = config.New().MustInit()
-	app.name = app.Config().GetString("app.name")
-	app.version = app.Config().GetString("app.version")
+	app.name = app.Config().GetString(AppName.String())
+	app.version = app.Config().GetString(AppVersion.String())
 	app.env = func() string {
-		if v := os.Getenv("APP_ENV"); len(v) > 0 {
+		if v := os.Getenv(EAppEnv.String()); len(v) > 0 {
 			return v
 		}
-		return app.Config().GetString("app.env")
+		return app.Config().GetString(AppEnv.String())
 	}()
-	app.port = app.Config().GetIntOrElse("app.port", 8080)
+	app.portRest = app.Config().GetIntOrElse(AppPortRest.String(), 8080)
+	app.portGrpc = app.Config().GetIntOrElse(AppPortGrpc.String(), 9090)
 	app.startContext = context.Background()
-	app.gracefulTimeout = time.Duration(app.Config().GetIntOrElse("app.graceful_timeout", 10)) * time.Second
-	app.tm = telemetry.NewNoop()
+	app.gracefulTimeout = app.Config().GetDurationOrElse(AppGracefulTimeout.String(), 10*time.Second)
+
 	for _, opt := range opts {
 		opt.apply(app)
 	}

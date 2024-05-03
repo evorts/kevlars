@@ -7,6 +7,11 @@
 
 package scaffold
 
+import (
+	"context"
+	"time"
+)
+
 type Option interface {
 	apply(app *Application)
 }
@@ -23,6 +28,12 @@ func WithName(v string) Option {
 	})
 }
 
+func WithVersion(v string) Option {
+	return optionFunc(func(app *Application) {
+		app.version = v
+	})
+}
+
 func WithScope(v string) Option {
 	return optionFunc(func(app *Application) {
 		app.scope = v
@@ -32,5 +43,29 @@ func WithScope(v string) Option {
 func WithPortConfigPath(path string) Option {
 	return optionFunc(func(app *Application) {
 		app.port = app.Config().GetInt(path)
+	})
+}
+
+func WithStartContext(v context.Context) Option {
+	return optionFunc(func(app *Application) {
+		app.startContext = v
+	})
+}
+
+func WithGracefulTimeout(v time.Duration) Option {
+	return optionFunc(func(app *Application) {
+		app.gracefulTimeout = v
+	})
+}
+
+func WithParseRequestId(v bool) Option {
+	return optionFunc(func(app *Application) {
+		app.parseRequestId = v
+	})
+}
+
+func WithCustomRequestIdGenerator(v func() string) Option {
+	return optionFunc(func(app *Application) {
+		app.requestIdGenerator = v
 	})
 }
