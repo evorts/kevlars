@@ -11,8 +11,8 @@ import (
 	"cloud.google.com/go/pubsub"
 	"context"
 	"encoding/json"
+	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/telemetry"
-	"github.com/evorts/kevlars/utils"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/api/option"
@@ -62,7 +62,7 @@ type googlePubsubActOption struct {
 }
 
 func (g *googlePubsubManager) spanName(v string) string {
-	return utils.IfER(len(g.scope) > 0, func() string {
+	return rules.WhenTrueR1(len(g.scope) > 0, func() string {
 		return g.scope + "." + v
 	}, func() string {
 		return v

@@ -12,8 +12,8 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/evorts/kevlars/requests"
+	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/telemetry"
-	"github.com/evorts/kevlars/utils"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"time"
@@ -68,14 +68,14 @@ func GrpcTraceInterceptor(tc trace.Tracer) grpc.UnaryClientInterceptor {
 func GrpcMetricInterceptor(metric telemetry.MetricsManager) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
 		iRes := invoker(ctx, method, req, reply, cc, opts...)
-		metric.StartDefault(method).Push("grpc:" + utils.Iif(iRes == nil, "success", "error"))
+		metric.StartDefault(method).Push("grpc:" + rules.Iif(iRes == nil, "success", "error"))
 		return iRes
 	}
 }
 
 func GrpcLogRequestPayloadInterceptor(inJson bool, logWithProps func(props map[string]interface{}, messages ...interface{})) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		v := utils.IfER(inJson, func() interface{} {
+		v := rules.WhenTrueR1(inJson, func() interface{} {
 			vv, _ := json.Marshal(req)
 			return string(vv)
 		}, func() interface{} {

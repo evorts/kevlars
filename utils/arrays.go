@@ -7,7 +7,10 @@
 
 package utils
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/evorts/kevlars/rules"
+)
 
 func InArray[T string | int | int64 | uint | uint64 | float32 | float64](arr []T, v T) bool {
 	for _, av := range arr {
@@ -74,8 +77,8 @@ func FindByInMapArray[T string | int | bool](field string, value T, collection [
 }
 
 func SliceItems[T any](items []T, page, limit int) []T {
-	page = Iif(page < 1, 1, page)
-	limit = Iif(limit < 1, 10, limit)
+	page = rules.Iif(page < 1, 1, page)
+	limit = rules.Iif(limit < 1, 10, limit)
 	offset := (page - 1) * limit
 	if offset < len(items) {
 		items = items[offset:]

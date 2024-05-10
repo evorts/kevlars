@@ -11,8 +11,8 @@ import (
 	"context"
 	"crypto/tls"
 	"github.com/evorts/kevlars/logger"
+	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/telemetry"
-	"github.com/evorts/kevlars/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"time"
@@ -62,20 +62,20 @@ func (g *grpcClientManager) connect() error {
 		opts = append(opts, grpc.WithPerRPCCredentials(AuthorizationCredential(g.token)))
 	}
 	unaryInterceptors := make([]grpc.UnaryClientInterceptor, 0)
-	utils.IfTrueThen(g.telemetryEnabled, func() {
+	rules.WhenTrue(g.telemetryEnabled, func() {
 		unaryInterceptors = append(unaryInterceptors, GrpcTraceInterceptor(g.tm.Tracer()))
 	})
-	utils.IfTrueThen(g.logRequestPayload, func() {
+	rules.WhenTrue(g.logRequestPayload, func() {
 		unaryInterceptors = append(unaryInterceptors, GrpcLogRequestPayloadInterceptor(g.logRequestPayloadInJson, g.log.InfoWithProps))
 	})
 	ctx := context.Background()
-	utils.IfTrueThen(g.timeout != nil && g.timeout.Milliseconds() > 0, func() {
+	rules.WhenTrue(g.timeout != nil && g.timeout.Milliseconds() > 0, func() {
 		unaryInterceptors = append(unaryInterceptors, GrpcTimeoutInterceptor(*g.timeout))
 	})
-	utils.IfTrueThen(g.metricIsEnabled(), func() {
+	rules.WhenTrue(g.metricIsEnabled(), func() {
 		unaryInterceptors = append(unaryInterceptors, GrpcMetricInterceptor(g.metric))
 	})
-	utils.IfTrueThen(len(unaryInterceptors) > 0, func() {
+	rules.WhenTrue(len(unaryInterceptors) > 0, func() {
 		opts = append(opts, grpc.WithChainUnaryInterceptor(unaryInterceptors...))
 	})
 	g.conn, err = grpc.DialContext(ctx, g.server, opts...)

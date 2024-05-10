@@ -12,8 +12,8 @@ import (
 	"database/sql"
 	"github.com/DATA-DOG/go-sqlmock"
 	_ "github.com/denisenkom/go-mssqldb"
+	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/telemetry"
-	"github.com/evorts/kevlars/utils"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/huandu/go-sqlbuilder"
 	"github.com/jmoiron/sqlx"
@@ -132,7 +132,7 @@ func wrap[T any](m *manager, ctx context.Context, name, q string, f func(newCtx 
 }
 
 func (m *manager) spanName(v string) string {
-	return utils.IfER(len(m.scope) > 0, func() string {
+	return rules.WhenTrueR1(len(m.scope) > 0, func() string {
 		return m.scope + ".db." + v
 	}, func() string {
 		return "db." + v

@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/evorts/kevlars/requests"
+	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/utils"
 	"github.com/go-resty/resty/v2"
 	otelAttr "go.opentelemetry.io/otel/attribute"
@@ -113,13 +114,13 @@ func (m *manager) wrapWithContext(
 	}, "calling remote rest api")
 	if !m.circuitBreakerEnabled {
 		resp, errF := f(newCtx)
-		utils.IfTrueThen(m.metricIsEnabled(), func() {
+		rules.WhenTrue(m.metricIsEnabled(), func() {
 			tags := []string{
 				"response_code:" + utils.IntToString(resp.StatusCode()),
 				"path:" + path,
 				"base:" + m.parseUrl(path),
 			}
-			utils.IfErrorThen(errF, func() {
+			rules.WhenError(errF, func() {
 				tags = append(tags, "error:"+errF.Error())
 			})
 			m.metric.StartDefault("rest.response." + m.name).Push(tags...)
@@ -128,13 +129,13 @@ func (m *manager) wrapWithContext(
 	}
 	rs, err := m.cb.Execute(func() (interface{}, error) {
 		resp, errF := f(newCtx)
-		utils.IfTrueThen(m.metricIsEnabled(), func() {
+		rules.WhenTrue(m.metricIsEnabled(), func() {
 			tags := []string{
 				"response_code:" + utils.IntToString(resp.StatusCode()),
 				"path:" + path,
 				"base:" + m.parseUrl(path),
 			}
-			utils.IfErrorThen(errF, func() {
+			rules.WhenError(errF, func() {
 				tags = append(tags, "error:"+errF.Error())
 			})
 			m.metric.StartDefault("rest.response.cb." + m.name).Push(tags...)
@@ -181,11 +182,11 @@ func (m *manager) wrap(ctx context.Context, path string, f func(newCtx context.C
 	}, "calling remote rest api")
 	if !m.circuitBreakerEnabled {
 		resp, errF := f(newCtx)
-		utils.IfTrueThen(m.metricIsEnabled(), func() {
+		rules.WhenTrue(m.metricIsEnabled(), func() {
 			tags := []string{
 				"response_code:" + utils.IntToString(resp.StatusCode()),
 			}
-			utils.IfErrorThen(errF, func() {
+			rules.WhenError(errF, func() {
 				tags = append(tags, "error:"+errF.Error())
 			})
 			m.metric.StartDefault("rest.response." + m.name).Push(tags...)
@@ -194,11 +195,11 @@ func (m *manager) wrap(ctx context.Context, path string, f func(newCtx context.C
 	}
 	rs, err := m.cb.Execute(func() (interface{}, error) {
 		resp, errF := f(newCtx)
-		utils.IfTrueThen(m.metricIsEnabled(), func() {
+		rules.WhenTrue(m.metricIsEnabled(), func() {
 			tags := []string{
 				"response_code:" + utils.IntToString(resp.StatusCode()),
 			}
-			utils.IfErrorThen(errF, func() {
+			rules.WhenError(errF, func() {
 				tags = append(tags, "error:"+errF.Error())
 			})
 			m.metric.StartDefault("rest.response.cb." + m.name).Push(tags...)
@@ -224,14 +225,14 @@ func (m *manager) wrap(ctx context.Context, path string, f func(newCtx context.C
 func (m *manager) parseReturnWithContext(ctx context.Context, rs *resty.Response, e error) (httpCode int, err error) {
 	clientId := requests.ClientId(ctx)
 	reqId := requests.Id(ctx)
-	reqAccept := utils.IfER(rs != nil && rs.Request != nil, func() string {
+	reqAccept := rules.WhenTrueR1(rs != nil && rs.Request != nil, func() string {
 		return rs.Request.Header.Get("Accept")
 	}, func() string { return "" })
-	reqContentType := utils.IfER(rs != nil && rs.Request != nil, func() string {
+	reqContentType := rules.WhenTrueR1(rs != nil && rs.Request != nil, func() string {
 		return rs.Request.Header.Get("Content-Type")
 	}, func() string { return "" })
-	respAccept := utils.IfER(rs != nil, func() string { return rs.Header().Get("Accept") }, func() string { return "" })
-	respContentType := utils.IfER(rs != nil, func() string { return rs.Header().Get("Content-Type") }, func() string { return "" })
+	respAccept := rules.WhenTrueR1(rs != nil, func() string { return rs.Header().Get("Accept") }, func() string { return "" })
+	respContentType := rules.WhenTrueR1(rs != nil, func() string { return rs.Header().Get("Content-Type") }, func() string { return "" })
 	traceMap := map[string]interface{}{
 		"http_code":         httpCode,
 		"client_id":         clientId,
@@ -243,27 +244,27 @@ func (m *manager) parseReturnWithContext(ctx context.Context, rs *resty.Response
 	}
 	m.log.WhenErrorWithProps(e, traceMap)
 	m.log.InfoWithProps(traceMap, "parse return with context")
-	method := utils.IfER(rs != nil && rs.Request != nil, func() string {
+	method := rules.WhenTrueR1(rs != nil && rs.Request != nil, func() string {
 		return rs.Request.Method
 	}, func() string {
 		return "unknown"
 	})
-	url := utils.IfER(rs != nil && rs.Request != nil, func() string {
+	url := rules.WhenTrueR1(rs != nil && rs.Request != nil, func() string {
 		return rs.Request.URL
 	}, func() string {
 		return ""
 	})
-	payload := utils.IfER(rs != nil && rs.Request != nil, func() interface{} {
+	payload := rules.WhenTrueR1(rs != nil && rs.Request != nil, func() interface{} {
 		return rs.Request.Body
 	}, func() interface{} {
 		return nil
 	})
-	errString := utils.IfER(e != nil, func() string {
+	errString := rules.WhenTrueR1(e != nil, func() string {
 		return e.Error()
 	}, func() string {
 		return ""
 	})
-	utils.IfTrueThen(m.logRequestPayload, func() {
+	rules.WhenTrue(m.logRequestPayload, func() {
 		m.log.InfoWithProps(map[string]interface{}{
 			"ctx":       "rest.request.payload",
 			"http_code": httpCode,
@@ -274,7 +275,7 @@ func (m *manager) parseReturnWithContext(ctx context.Context, rs *resty.Response
 			"payload":   payload,
 		}, errString)
 	})
-	utils.IfTrueThen(m.logResponse, func() {
+	rules.WhenTrue(m.logResponse, func() {
 		m.log.InfoWithProps(map[string]interface{}{
 			"ctx":       "rest.response",
 			"http_code": httpCode,
@@ -282,7 +283,7 @@ func (m *manager) parseReturnWithContext(ctx context.Context, rs *resty.Response
 			"req_id":    reqId,
 			"path":      rs.Request.URL,
 			"method":    method,
-			"body": utils.IfER(rs != nil, func() string {
+			"body": rules.WhenTrueR1(rs != nil, func() string {
 				return rs.String()
 			}, func() string {
 				return ""

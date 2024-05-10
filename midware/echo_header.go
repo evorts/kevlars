@@ -58,7 +58,7 @@ func EchoResponseWithProperRequestId(log logger.Manager) echo.MiddlewareFunc {
 		return func(c echo.Context) error {
 			resp := c.Response()
 			req := c.Request()
-			reqIdEcho := requests.IdEC(c)
+			reqIdEcho := requests.IdEcho(c)
 			reqIdContext := requests.Id(req.Context())
 			log.InfoWithProps(map[string]interface{}{
 				"req_id_echo":    reqIdEcho,

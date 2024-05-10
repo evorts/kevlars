@@ -12,8 +12,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/telemetry"
-	"github.com/evorts/kevlars/utils"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/api/option"
@@ -43,7 +43,7 @@ type googlePubSubManager struct {
 }
 
 func (g *googlePubSubManager) spanName(v string) string {
-	return utils.IfER(len(g.scope) > 0, func() string {
+	return rules.WhenTrueR1(len(g.scope) > 0, func() string {
 		return g.scope + "." + v
 	}, func() string {
 		return v

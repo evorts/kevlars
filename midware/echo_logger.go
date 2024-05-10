@@ -3,6 +3,7 @@ package midware
 import (
 	"fmt"
 	"github.com/evorts/kevlars/logger"
+	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/utils"
 	"github.com/labstack/echo/v4"
 	"math"
@@ -56,7 +57,7 @@ func EchoLogger(l logger.Manager, pathNotLogged ...string) echo.MiddlewareFunc {
 				"userAgent":   clientUserAgent,
 				"accept":      req.Header.Get("Accept"),
 				"contentType": req.Header.Get("Content-Type"),
-				"clientID": utils.IfER[string](clientID == nil, func() string { return "<undefined>" }, func() string {
+				"clientID": rules.WhenTrueR1[string](clientID == nil, func() string { return "<undefined>" }, func() string {
 					if v, ok := clientID.(string); ok {
 						return v
 					}

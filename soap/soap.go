@@ -13,6 +13,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"github.com/evorts/kevlars/logger"
+	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/telemetry"
 	"github.com/evorts/kevlars/utils"
 	"github.com/sony/gobreaker"
@@ -118,11 +119,11 @@ func (m *manager) wrap(ctx context.Context, f func(newCtx context.Context) (http
 	var newCtx = ctx
 	if !m.circuitBreakerEnabled {
 		code, raws, errF := f(newCtx)
-		utils.IfTrueThen(m.metricIsEnabled(), func() {
+		rules.WhenTrue(m.metricIsEnabled(), func() {
 			tags := []string{
 				"response_code:" + utils.IntToString(code),
 			}
-			utils.IfErrorThen(errF, func() {
+			rules.WhenError(errF, func() {
 				tags = append(tags, "error:"+errF.Error())
 			})
 			m.metric.StartDefault("soap.call." + m.name).Push(tags...)
@@ -132,11 +133,11 @@ func (m *manager) wrap(ctx context.Context, f func(newCtx context.Context) (http
 	rs, err := m.cb.Execute(func() (interface{}, error) {
 		code, raws, errF := f(newCtx)
 		rs := []interface{}{code, raws}
-		utils.IfTrueThen(m.metricIsEnabled(), func() {
+		rules.WhenTrue(m.metricIsEnabled(), func() {
 			tags := []string{
 				"response_code:" + utils.IntToString(code),
 			}
-			utils.IfErrorThen(errF, func() {
+			rules.WhenError(errF, func() {
 				tags = append(tags, "error:"+errF.Error())
 			})
 			m.metric.StartDefault("soap.call.cb." + m.name).Push(tags...)
@@ -159,7 +160,7 @@ func (m *manager) doRaw(ctx context.Context, action, method, url string, payload
 		resp *http.Response
 		buf  bytes.Buffer
 	)
-	url = utils.IfEmpty(url, m.serviceUrl)
+	url = rules.IfEmpty(url, m.serviceUrl)
 	m.log.InfoWithProps(map[string]interface{}{
 		"method": method,
 		"url":    url,
@@ -230,7 +231,7 @@ func (m *manager) PostWithLargeResult(ctx context.Context, action, url string, p
 		//buf  bytes.Buffer
 		err error
 	)
-	url = utils.IfEmpty(url, m.serviceUrl)
+	url = rules.IfEmpty(url, m.serviceUrl)
 	m.log.WarnWithProps(map[string]interface{}{
 		"method": "POST",
 		"url":    url,

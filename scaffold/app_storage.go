@@ -10,8 +10,8 @@ package scaffold
 import (
 	"github.com/evorts/kevlars/db"
 	"github.com/evorts/kevlars/inmemory"
+	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/telemetry"
-	"github.com/evorts/kevlars/utils"
 )
 
 type IStorage interface {
@@ -70,7 +70,7 @@ func (app *Application) WithDatabases() IApplication {
 		if maxIdleConnection > 0 {
 			opts = append(opts, db.WithMaxIdleConnection(maxIdleConnection))
 		}
-		utils.IfTrueThen(tmEnabled, func() {
+		rules.WhenTrue(tmEnabled, func() {
 			opts = append(opts, db.WithTelemetry(app.Telemetry()), db.WithTelemetryEnabled(tmEnabled))
 		})
 		app.dbs[dbk] = db.New(db.SupportedDriver(driver), dsn, opts...)
@@ -126,17 +126,17 @@ func (app *Application) WithInMemories() IApplication {
 		if v, exist := cItem["telemetry_enabled"]; exist {
 			tmEnabled, _ = v.(bool)
 		}
-		utils.IfTrueThen(!inmemory.ValidProvider(provider), func() {
+		rules.WhenTrue(!inmemory.ValidProvider(provider), func() {
 			provider = inmemory.ProviderValKey.String()
 		})
-		utils.IfE(enabled, func() {
-			utils.IfE(provider == inmemory.ProviderRedis.String(), func() {
+		rules.WhenTrueE(enabled, func() {
+			rules.WhenTrueE(provider == inmemory.ProviderRedis.String(), func() {
 				opts := append(
 					inmemory.NewRedisOptions(),
 					inmemory.RedisWithPassword(pass),
 					inmemory.RedisWithDB(dbIdx),
 				)
-				utils.IfE(tmEnabled, func() {
+				rules.WhenTrueE(tmEnabled, func() {
 					opts = append(opts, inmemory.RedisWithTelemetry(app.Telemetry()))
 				}, func() {
 					opts = append(opts, inmemory.RedisWithTelemetry(telemetry.NewNoop()))
@@ -151,7 +151,7 @@ func (app *Application) WithInMemories() IApplication {
 					inmemory.ValKeyWithPassword(pass),
 					inmemory.ValKeyWithDB(dbIdx),
 				)
-				utils.IfE(tmEnabled, func() {
+				rules.WhenTrueE(tmEnabled, func() {
 					opts = append(opts, inmemory.ValKeyWithTelemetry(app.Telemetry()))
 				}, func() {
 					opts = append(opts, inmemory.ValKeyWithTelemetry(telemetry.NewNoop()))

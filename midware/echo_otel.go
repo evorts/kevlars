@@ -3,6 +3,7 @@ package midware
 import (
 	"fmt"
 	"github.com/evorts/kevlars/requests"
+	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/telemetry"
 	"github.com/evorts/kevlars/utils"
 	"github.com/evorts/kevlars/vars"
@@ -40,9 +41,9 @@ type echoCfg struct {
 func trace(ec echo.Context, eCfg *echoCfg, body []byte) {
 	req := ec.Request()
 	ctx := req.Context()
-	reqId := requests.IdEC(ec)
-	ecClientId := requests.ClientIdEC(ec)
-	clientId := utils.Iif(len(ecClientId) < 1, vars.ClientIdUnknown, ecClientId)
+	reqId := requests.IdEcho(ec)
+	ecClientId := requests.ClientIdEcho(ec)
+	clientId := rules.Iif(len(ecClientId) < 1, vars.ClientIdUnknown, ecClientId)
 	//ctx := ec.propagators.Extract(savedCtx, propagation.HeaderCarrier(request.Header))
 	opts := []otelTrace.SpanStartOption{
 		//otelTrace.WithAttributes(semConv.NetAttributesFromHTTPRequest("tcp", request)...),

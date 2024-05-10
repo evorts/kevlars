@@ -12,6 +12,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"errors"
+	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/telemetry"
 	"github.com/evorts/kevlars/utils"
 	"github.com/valkey-io/valkey-go"
@@ -58,10 +59,10 @@ func (m *valkeyManager) Connect(ctx context.Context) error {
 		if len(m.certB64) > 0 {
 			var cb, kb []byte
 			cb, err = base64.StdEncoding.DecodeString(m.certB64)
-			utils.IfTrueThen(err == nil, func() {
+			rules.WhenTrue(err == nil, func() {
 				kb, err = base64.StdEncoding.DecodeString(m.keyB64)
 			})
-			utils.IfTrueThen(err == nil, func() {
+			rules.WhenTrue(err == nil, func() {
 				cert, err = tls.X509KeyPair(cb, kb)
 			})
 		} else {
@@ -90,7 +91,7 @@ func (m *valkeyManager) Connect(ctx context.Context) error {
 }
 
 func (m *valkeyManager) spanName(v string) string {
-	return utils.IfER(len(m.scope) > 0, func() string {
+	return rules.WhenTrueR1(len(m.scope) > 0, func() string {
 		return m.scope + ".inmemory." + v
 	}, func() string {
 		return "inmemory." + v

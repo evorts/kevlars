@@ -13,6 +13,8 @@ import (
 	"fmt"
 	"github.com/evorts/kevlars/rest"
 	"github.com/evorts/kevlars/rpc"
+	"github.com/evorts/kevlars/rules"
+	"github.com/evorts/kevlars/rules/eval"
 	"github.com/evorts/kevlars/soap"
 	"github.com/evorts/kevlars/utils"
 	semConv "go.opentelemetry.io/otel/semconv/v1.12.0"
@@ -112,7 +114,7 @@ func (app *Application) WithRestClients() IApplication {
 			rest.WithTracing(app.Config().GetBool("rest.trace_enabled")),
 			rest.WithLogger(app.Log()),
 		}
-		utils.IfTrueThen(telemetryEnabled, func() {
+		rules.WhenTrue(telemetryEnabled, func() {
 			tOps := []rest.TransportOption{
 				rest.TransportWithTelemetry(app.Telemetry()),
 				rest.TransportWithName(contextName),
@@ -120,20 +122,20 @@ func (app *Application) WithRestClients() IApplication {
 			}
 			opts = append(opts, rest.WithTransport(tOps...))
 		})
-		utils.IfTrueThen(metricEnabled, func() {
+		rules.WhenTrue(metricEnabled, func() {
 			opts = append(opts, rest.WithMetrics(metricEnabled, app.Metrics()))
 		})
-		utils.IfTrueThen(len(svc.ProxyUrl) > 0, func() {
+		rules.WhenTrue(len(svc.ProxyUrl) > 0, func() {
 			opts = append(opts, rest.WithProxy(svc.ProxyUrl))
 		})
-		utils.IfTrueThen(svc.LogRequestPayload, func() {
+		rules.WhenTrue(svc.LogRequestPayload, func() {
 			opts = append(opts, rest.WithLogRequest(true))
 		})
-		utils.IfTrueThen(svc.LogResponse, func() {
+		rules.WhenTrue(svc.LogResponse, func() {
 			opts = append(opts, rest.WithLogResponse(true))
 		})
 		app.restClients[svc.Name] = rest.New(opts...)
-		utils.IfTrueThen(svc.CircuitBreaker.Enabled, func() {
+		rules.WhenTrue(svc.CircuitBreaker.Enabled, func() {
 			app.restClients[svc.Name].WithCircuitBreaker(
 				uint32(svc.CircuitBreaker.MaxRequest),
 				time.Duration(svc.CircuitBreaker.Interval)*time.Millisecond,
@@ -144,8 +146,8 @@ func (app *Application) WithRestClients() IApplication {
 		var svcAuth map[string]interface{}
 		svcAuthCfgKey := fmt.Sprintf("rest.auth.%s", svc.Name)
 		err = app.Config().UnmarshalTo(svcAuthCfgKey, &svcAuth)
-		utils.IfTrueThen(
-			utils.AND(
+		rules.WhenTrue(
+			eval.AND(
 				err == nil,
 				utils.CastToBoolND(utils.GetValueOnMap(svcAuth, "enabled", false)),
 			),
@@ -156,8 +158,8 @@ func (app *Application) WithRestClients() IApplication {
 					k, v := authTypeHeaders.KV()
 					kk := app.Config().GetString(fmt.Sprintf("%s.%s.%s", svcAuthCfgKey, use, k))
 					vv := app.Config().GetString(fmt.Sprintf("%s.%s.%s", svcAuthCfgKey, use, v))
-					utils.IfTrueThen(
-						utils.AND(
+					rules.WhenTrue(
+						eval.AND(
 							len(kk) > 0,
 							len(vv) > 0,
 						),
@@ -197,7 +199,7 @@ func (app *Application) WithSoapClients() IApplication {
 		if largeFileTimeout > 0 {
 			opts = append(opts, soap.WithLargeContentTimeout(time.Duration(largeFileTimeout)*time.Second))
 		}
-		utils.IfTrueThen(telemetryEnabled, func() {
+		rules.WhenTrue(telemetryEnabled, func() {
 			opts = append(opts,
 				soap.WithTransport(
 					soap.WithTelemetry(app.Telemetry()),
@@ -205,7 +207,7 @@ func (app *Application) WithSoapClients() IApplication {
 				),
 			)
 		})
-		utils.IfTrueThen(metricEnabled, func() {
+		rules.WhenTrue(metricEnabled, func() {
 			opts = append(opts, soap.WithMetrics(metricEnabled, app.Metrics()))
 		})
 		authType := app.Config().GetString(fmt.Sprintf("soap.auth.%s.use", svc.Name))
@@ -247,20 +249,20 @@ func (app *Application) WithGrpcClients() IApplication {
 			rpc.WithName(contextName),
 			rpc.WithLogger(app.Log()),
 		}
-		utils.IfTrueThen(telemetryEnabled, func() {
+		rules.WhenTrue(telemetryEnabled, func() {
 			opts = append(opts, rpc.WithTelemetry(app.Telemetry()), rpc.WithTelemetryEnabled(telemetryEnabled))
 		})
-		utils.IfTrueThen(svc.CircuitBreaker.Timeout > 0, func() {
+		rules.WhenTrue(svc.CircuitBreaker.Timeout > 0, func() {
 			opts = append(opts, rpc.WithTimeout(time.Duration(svc.CircuitBreaker.Timeout)*time.Millisecond))
 		})
-		utils.IfTrueThen(metricEnabled, func() {
+		rules.WhenTrue(metricEnabled, func() {
 			opts = append(opts, rpc.WithMetrics(metricEnabled, app.Metrics()))
 		})
-		utils.IfTrueThen(svc.LogRequestPayload, func() {
+		rules.WhenTrue(svc.LogRequestPayload, func() {
 			opts = append(opts, rpc.WithLoggingRequestPayload(svc.LogRequestPayload, svc.LogRequestPayloadInJson))
 		})
 		authCfgKey := "grpc.auth." + svc.Name
-		utils.IfTrueThen(app.Config().GetBool(authCfgKey+".enabled"), func() {
+		rules.WhenTrue(app.Config().GetBool(authCfgKey+".enabled"), func() {
 			authType := app.Config().GetString(authCfgKey + ".use")
 			switch authType {
 			case "token":
@@ -273,10 +275,10 @@ func (app *Application) WithGrpcClients() IApplication {
 				if len(b64Creds) > 0 {
 					var cb, kb []byte
 					cb, err = base64.StdEncoding.DecodeString(b64Creds)
-					utils.IfTrueThen(err == nil, func() {
+					rules.WhenTrue(err == nil, func() {
 						kb, err = base64.StdEncoding.DecodeString(b64Key)
 					})
-					utils.IfTrueThen(err == nil, func() {
+					rules.WhenTrue(err == nil, func() {
 						cert, err = tls.X509KeyPair(cb, kb)
 					})
 					if err != nil {

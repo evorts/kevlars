@@ -10,6 +10,7 @@ package scaffold
 import (
 	"github.com/evorts/kevlars/health"
 	"github.com/evorts/kevlars/logger"
+	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/telemetry"
 	"github.com/evorts/kevlars/ts"
 	"github.com/evorts/kevlars/utils"
@@ -52,19 +53,19 @@ func (app *Application) withLogger() IApplication {
 		logLevel = logger.LogLevelError.Id()
 	}
 	svc := []string{app.name}
-	utils.IfTrueThen(len(app.Env()) > 0, func() {
+	rules.WhenTrue(len(app.Env()) > 0, func() {
 		svc = append(svc, app.env)
 	})
-	utils.IfTrueThen(len(app.Version()) > 0, func() {
+	rules.WhenTrue(len(app.Version()) > 0, func() {
 		svc = append(svc, app.version)
 	})
-	utils.IfTrueThen(len(app.Scope()) > 0, func() {
+	rules.WhenTrue(len(app.Scope()) > 0, func() {
 		svc = append(svc, app.scope)
 	})
 	opts := []logger.Option{
 		logger.WithServiceName(strings.Join(svc, ".")),
 	}
-	utils.IfTrueThen(app.Config().GetBool(AppLogUseCustomTimezone.String()), func() {
+	rules.WhenTrue(app.Config().GetBool(AppLogUseCustomTimezone.String()), func() {
 		if v := app.Config().GetString(AppLogTimezone.String()); len(v) > 0 {
 			opts = append(opts, logger.WithTZTimeFormatter(ts.TimeZone(v)))
 		}
@@ -139,19 +140,19 @@ func (app *Application) healthDependenciesEchoHandler(c echo.Context) error {
 		DbKey.String():       make([]deps, 0),
 		InMemoryKey.String(): make([]deps, 0),
 	}
-	utils.IfTrueThen(app.HasDB(), func() {
+	rules.WhenTrue(app.HasDB(), func() {
 		for dbk, dbm := range app.dbs {
 			result[DbKey.String()] = append(result[DbKey.String()], deps{
 				name:   dbk,
-				status: utils.IfER(dbm.Ping() == nil, func() string { return health.OK }, func() string { return health.NOK }),
+				status: rules.WhenTrueR1(dbm.Ping() == nil, func() string { return health.OK }, func() string { return health.NOK }),
 			})
 		}
 	})
-	utils.IfTrueThen(app.HasInMemory(), func() {
+	rules.WhenTrue(app.HasInMemory(), func() {
 		for ck, cm := range app.in_memories {
 			result[InMemoryKey.String()] = append(result[InMemoryKey.String()], deps{
 				name:   ck,
-				status: utils.IfER(cm.Ping() == nil, func() string { return health.OK }, func() string { return health.NOK }),
+				status: rules.WhenTrueR1(cm.Ping() == nil, func() string { return health.OK }, func() string { return health.NOK }),
 			})
 		}
 	})
