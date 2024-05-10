@@ -37,6 +37,8 @@ type IApplication interface {
 	IRun
 	IStorage
 	IScheduler
+	IFeatureFlag
+	IContext
 }
 
 type Application struct {

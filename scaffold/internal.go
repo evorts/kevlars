@@ -25,7 +25,11 @@ type GracefulLogger interface {
 	Fatal(i ...interface{})
 }
 
-func GracefulStart(port int, timeout time.Duration, engine GracefulEngine, logger GracefulLogger) {
+func GracefulStop(port int, timeout time.Duration, engine GracefulEngine, logger GracefulLogger) {
+	GracefulStopWithContext(context.Background(), port, timeout, engine, logger)
+}
+
+func GracefulStopWithContext(ctx context.Context, port int, timeout time.Duration, engine GracefulEngine, logger GracefulLogger) {
 	// Start server
 	go func() {
 		if err := engine.Start(fmt.Sprintf(":%d", port)); err != nil {
@@ -37,7 +41,7 @@ func GracefulStart(port int, timeout time.Duration, engine GracefulEngine, logge
 	quit := make(chan os.Signal)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	if err := engine.Shutdown(ctx); err != nil {
 		logger.Fatal(err)

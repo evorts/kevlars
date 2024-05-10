@@ -59,8 +59,9 @@ func (app *Application) RunUseEcho(run func(a *Application, e *echo.Echo)) {
 		}
 	}
 	run(app, e)
-	GracefulStart(
-		app.Port(),
+	GracefulStopWithContext(
+		app.Context(),
+		app.PortRest(),
 		app.gracefulTimeout,
 		e, app.Log(),
 	)
@@ -140,8 +141,9 @@ func (app *Application) RunRestApiUseEcho(run func(a *Application, e *echo.Echo)
 		}
 	}
 	run(app, e)
-	GracefulStart(
-		app.Port(),
+	GracefulStopWithContext(
+		app.Context(),
+		app.PortRest(),
 		app.gracefulTimeout,
 		e, app.Log(),
 	)
