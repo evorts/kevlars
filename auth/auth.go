@@ -7,20 +7,27 @@
 
 package auth
 
-import "context"
+import (
+	"context"
+	"github.com/evorts/kevlars/common"
+)
 
-type Manager interface {
-	GetRequestingPartyPermissions(ctx context.Context, token, realm string, opts RequestingPartyTokenOptions) (RequestingPartyPermissions, error)
+type OAuthManager interface {
+	GetPermissions(ctx context.Context, token, realm string) (OAuthPermissions, error)
 }
 
-type manager struct {
+type oauthManager struct {
 }
 
-func (m *manager) GetRequestingPartyPermissions(ctx context.Context, token, realm string, opts RequestingPartyTokenOptions) (RequestingPartyPermissions, error) {
+func (o *oauthManager) GetPermissions(ctx context.Context, token, realm string) (OAuthPermissions, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func New() Manager {
-	return &manager{}
+func NewOAuthManager(opts ...common.Option[oauthManager]) OAuthManager {
+	m := &oauthManager{}
+	for _, opt := range opts {
+		opt.Apply(m)
+	}
+	return m
 }

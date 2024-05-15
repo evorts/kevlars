@@ -12,8 +12,8 @@ import (
 )
 
 type ApiKeySecretMap struct {
-	Key      string `mapstructure:"key"`
-	ClientId string `mapstructure:"client_id"`
+	Key      string `mapstructure:"key" json:"key"`
+	ClientId string `mapstructure:"client_id" json:"client_id"`
 }
 
 func echoWithAuthApiKeySecretsEligibleClients(maps []ApiKeySecretMap, compareFunc func(items []string, item string) bool, clientIds ...string) echo.MiddlewareFunc {
@@ -62,7 +62,7 @@ func EchoWithAuthApiKeySecrets(maps []ApiKeySecretMap) echo.MiddlewareFunc {
 	return EchoWithAuthApiKeySecretsWithWhitelistClient(maps)
 }
 
-func EchoWithAuthToken(am auth.Manager, realm, clientID string, clientSecret string, permissionScope string) echo.MiddlewareFunc {
+func EchoWithAuthToken(am auth.OAuthManager, realm, clientID string, clientSecret string, permissionScope string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			req := c.Request()
@@ -77,20 +77,14 @@ func EchoWithAuthToken(am auth.Manager, realm, clientID string, clientSecret str
 
 			//get resource nam from url
 			resourceName := c.Request().URL.String()
-			rptOptions := auth.RequestingPartyTokenOptions{}
-
-			grantTypeString := "urn:ietf:params:oauth:grant-type:uma-ticket"
-			rptOptions.GrantType = grantTypeString
-			rptOptions.Audience = clientID
 
 			//get requesting party token from user token
-			rpt, err := am.GetRequestingPartyPermissions(ctx, token, realm, rptOptions)
+			permissions, err := am.GetPermissions(ctx, token, realm)
 			if err != nil {
 				return c.JSON(contracts.NewResponseFail(http.StatusUnauthorized, "not permitted to access this resource due to failed to retrieve requesting party token ", contracts.ErrorDetail{}))
 			}
 
 			//check request authorization
-			permissions := rpt
 			for _, permission := range permissions {
 				resName := permission.ResourceName
 				if resName == resourceName && permission.Scopes != nil {

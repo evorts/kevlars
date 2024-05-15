@@ -27,7 +27,7 @@ func AND(ands ...bool) bool {
 	return true
 }
 
-func IsEmpty[T any](v T) bool {
+func IsEmpty[T any](v *T) bool {
 	t := reflect.TypeOf(v)
 	k := t.Kind()
 	switch true {
@@ -63,6 +63,6 @@ func IsEmpty[T any](v T) bool {
 	return false
 }
 
-func IsNil[T any](v T) bool {
+func IsNil[T any](v *T) bool {
 	return v == nil
 }

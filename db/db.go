@@ -45,6 +45,7 @@ type Manager interface {
 	Prepare(ctx context.Context, query string) (*sqlx.Stmt, error)
 	PrepareNamed(ctx context.Context, query string) (*sqlx.NamedStmt, error)
 
+	DSN() string
 	Driver() SupportedDriver
 	Ping() error
 	SetTelemetry(tm telemetry.Manager) Manager
@@ -145,6 +146,10 @@ func (m *manager) Rebind(query string) string {
 
 func (m *manager) Ping() error {
 	return m.db.Ping()
+}
+
+func (m *manager) DSN() string {
+	return m.dsn
 }
 
 func (m *manager) Driver() SupportedDriver {

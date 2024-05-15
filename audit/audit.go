@@ -9,6 +9,7 @@ package audit
 
 import (
 	"context"
+	"github.com/evorts/kevlars/common"
 	"github.com/evorts/kevlars/db"
 	"github.com/huandu/go-sqlbuilder"
 	"time"
@@ -35,7 +36,7 @@ type Manager interface {
 }
 
 type manager struct {
-	db db.Manager
+	dbw db.Manager
 }
 
 const (
@@ -55,9 +56,9 @@ func (m *manager) Add(ctx context.Context, record Record) error {
 		Values(record.Action, record.CreatedById, record.CreatedByName, record.Role,
 			db.ToJsonObjectFromMap(record.BeforeChanged), db.ToJsonObjectFromMap(record.AfterChanged),
 			db.ToJsonObjectFromMap(record.AdditionalProps), record.Notes, sqlbuilder.Raw("now()")).
-		BuildWithFlavor(m.db.Driver().ToSqlBuilderFlavor())
-	sql = m.db.Rebind(sql)
-	err := m.db.QueryRow(ctx, sql, args...).Err()
+		BuildWithFlavor(m.dbw.Driver().ToSqlBuilderFlavor())
+	sql = m.dbw.Rebind(sql)
+	err := m.dbw.QueryRow(ctx, sql, args...).Err()
 	return err
 }
 
@@ -70,30 +71,19 @@ func (m *manager) AddMultiple(ctx context.Context, records []Record) error {
 			db.ToJsonObjectFromMap(record.BeforeChanged), db.ToJsonObjectFromMap(record.AfterChanged),
 			db.ToJsonObjectFromMap(record.AdditionalProps), record.Notes, sqlbuilder.Raw("now()"))
 	}
-	sql, args := builder.BuildWithFlavor(m.db.Driver().ToSqlBuilderFlavor())
-	_, err := m.db.Exec(ctx, sql, args...)
+	sql, args := builder.BuildWithFlavor(m.dbw.Driver().ToSqlBuilderFlavor())
+	_, err := m.dbw.Exec(ctx, sql, args...)
 	return err
 }
 
 func (m *manager) Init() error {
-	return m.ensureTableExist()
-}
-
-func (m *manager) MustInit() Manager {
-	if err := m.Init(); err != nil {
-		panic(err)
-	}
-	return m
-}
-
-func (m *manager) ensureTableExist() error {
 	var (
 		ctx      = context.Background()
 		colIdDef = []string{"id", "bigint", "primary key"}
 		colJson  []string
 		colAt    = []string{"created_at"}
 	)
-	if m.db.Driver() == db.DriverPostgreSQL {
+	if m.dbw.Driver() == db.DriverPostgreSQL {
 		colIdDef = append(colIdDef, "generated always as identity")
 		colJson = append(colJson, "jsonb")
 		colAt = append(colAt, "timestamp")
@@ -114,13 +104,24 @@ func (m *manager) ensureTableExist() error {
 		Define("notes", "text").
 		Define(colAt...).Option("DEFAULT CHARACTER SET", "utf8mb4")
 
-	_, err := m.db.Exec(ctx, builder.String())
+	_, err := m.dbw.Exec(ctx, builder.String())
 	if err == nil {
-		_, _ = m.db.Exec(ctx, `ALTER TABLE `+table+` ADD INDEX(action), ADD INDEX(created_by_id), ADD INDEX(created_at)`)
+		_, _ = m.dbw.Exec(ctx, `ALTER TABLE `+table+` ADD INDEX(action), ADD INDEX(created_by_id), ADD INDEX(created_at)`)
 	}
 	return err
 }
 
-func New(dbm db.Manager) Manager {
-	return &manager{db: dbm}
+func (m *manager) MustInit() Manager {
+	if err := m.Init(); err != nil {
+		panic(err)
+	}
+	return m
+}
+
+func New(db db.Manager, opts ...common.Option[manager]) Manager {
+	m := &manager{dbw: db}
+	for _, opt := range opts {
+		opt.Apply(m)
+	}
+	return m
 }

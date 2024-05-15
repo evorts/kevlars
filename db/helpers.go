@@ -53,7 +53,7 @@ func (h *helper) BuildSqlAndArgs() (string, []interface{}) {
 		q = append(q, fq)
 		args = append(args, fv...)
 	}
-	if h.ordersBy != nil {
+	if h.ordersBy != nil && len(h.ordersBy) > 0 {
 		q = append(q, h.ordersBy.Build())
 	}
 	// limit, offset should be at the last order

@@ -11,6 +11,7 @@ import (
 	"context"
 	"github.com/evorts/kevlars/algo"
 	"github.com/evorts/kevlars/audit"
+	"github.com/evorts/kevlars/auth"
 	"github.com/evorts/kevlars/config"
 	"github.com/evorts/kevlars/db"
 	"github.com/evorts/kevlars/fflag"
@@ -39,6 +40,8 @@ type IApplication interface {
 	IScheduler
 	IFeatureFlag
 	IContext
+	IAuth
+	IAudit
 }
 
 type Application struct {
@@ -70,14 +73,17 @@ type Application struct {
 	schedulers map[string]scheduler.Manager
 
 	// storage
-	dbs         map[string]db.Manager       // multi database
-	in_memories map[string]inmemory.Manager // multi cache
+	dbs        map[string]db.Manager       // multi database
+	inMemories map[string]inmemory.Manager // multi cache
 
 	// algorithm
 	similarity algo.SimilarityManager // provider => similarity
 
 	// feature flag
 	featureFlag fflag.Manager
+
+	// authentication
+	authClient auth.ClientManager
 
 	routes           []route // routes for rest endpoint
 	midwareTelemetry interface{}
@@ -124,7 +130,7 @@ func (app *Application) MaskedHeaders() []string {
 
 func NewApp(opts ...Option) IApplication {
 	app := &Application{
-		in_memories: make(map[string]inmemory.Manager),
+		inMemories: make(map[string]inmemory.Manager),
 		dbs: map[string]db.Manager{
 			DefaultKey: db.NewNoop(),
 		},

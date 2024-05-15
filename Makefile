@@ -6,6 +6,9 @@ COV = $$(go tool cover -func $(COV_OUTPUT) | grep total | awk '{print substr($$3
 unittest:
 	go test -short $(TEST_PKG)
 
+test-integration:
+	go test -tags=integration
+
 test-coverage:
 	echo ${COV_PKG}
 	go clean -testcache

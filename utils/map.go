@@ -13,24 +13,16 @@ import (
 	"strings"
 )
 
-func GetValueOnMap(dict map[string]interface{}, key string, defaultValue interface{}) interface{} {
+func GetValueOnMap[K comparable, V any](dict map[K]V, key K, defaultValue V) V {
 	if v, ok := dict[key]; ok {
 		return v
 	}
 	return defaultValue
 }
 
-func ValueOnMapByKey[T any](dict map[string]T, key string, defaultValue T) T {
-	if v, ok := dict[key]; ok {
-		return v
-	}
-	return defaultValue
-}
-func ValueOnMap[T string | int | int64 | float64 | interface{}](dict map[string]T, key string, defaultValue T) T {
-	if v, ok := dict[key]; ok {
-		return v
-	}
-	return defaultValue
+func KeyExistsInMap[K comparable, V any](m map[K]V, key K) bool {
+	_, ok := m[key]
+	return ok
 }
 
 func MapToStringArray(value map[string]interface{}, format, separator string) string {

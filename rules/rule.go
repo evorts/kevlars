@@ -46,11 +46,11 @@ func WhenErrorE(err error, run F, orElse F) {
 	WhenTrueE(err != nil, run, orElse)
 }
 
-func WhenNil[T any](v T, run F) {
+func WhenNil[T any](v *T, run F) {
 	WhenNilE(v, run, nil)
 }
 
-func WhenNilE[T any](v T, run F, orElse F) {
+func WhenNilE[T any](v *T, run F, orElse F) {
 	if v == nil {
 		run()
 		return
@@ -60,13 +60,13 @@ func WhenNilE[T any](v T, run F, orElse F) {
 	}
 }
 
-func WhenNilR1[T any](v T, run FR1[T]) T {
+func WhenNilR1[T any](v *T, run FR1[T]) T {
 	return WhenNilRE1(v, run, func() T {
-		return v
+		return *v
 	})
 }
 
-func WhenNilRE1[T any](v T, run FR1[T], orElse FR1[T]) T {
+func WhenNilRE1[T any](v *T, run FR1[T], orElse FR1[T]) T {
 	if v == nil {
 		return run()
 	}
@@ -76,11 +76,11 @@ func WhenNilRE1[T any](v T, run FR1[T], orElse FR1[T]) T {
 	panic("or else is not defined")
 }
 
-func WhenEmpty[T any](v T, run F) {
+func WhenEmpty[T any](v *T, run F) {
 	WhenEmptyE(v, run, nil)
 }
 
-func WhenEmptyE[T any](v T, run F, orElse F) {
+func WhenEmptyE[T any](v *T, run F, orElse F) {
 	if eval.IsEmpty(v) {
 		run()
 		return
@@ -90,7 +90,7 @@ func WhenEmptyE[T any](v T, run F, orElse F) {
 	}
 }
 
-func WhenEmptyR1[T any](v T, run FR1[T], orElse FR1[T]) T {
+func WhenEmptyR1[T any](v *T, run FR1[T], orElse FR1[T]) T {
 	if eval.IsEmpty(v) {
 		return run()
 	}
@@ -100,11 +100,11 @@ func WhenEmptyR1[T any](v T, run FR1[T], orElse FR1[T]) T {
 	panic("or else is not defined")
 }
 
-func WhenNotEmpty[T any](v T, run F) {
+func WhenNotEmpty[T any](v *T, run F) {
 	WhenNotEmptyE(v, run, nil)
 }
 
-func WhenNotEmptyE[T any](v T, run F, orElse F) {
+func WhenNotEmptyE[T any](v *T, run F, orElse F) {
 	if !eval.IsEmpty(v) {
 		run()
 		return
@@ -114,7 +114,7 @@ func WhenNotEmptyE[T any](v T, run F, orElse F) {
 	}
 }
 
-func WhenNotEmptyR1[T any](v T, run FR1[T], orElse FR1[T]) T {
+func WhenNotEmptyR1[T any](v *T, run FR1[T], orElse FR1[T]) T {
 	if !eval.IsEmpty(v) {
 		return run()
 	}
@@ -155,33 +155,33 @@ func Iif[T1 any](expression bool, whenTrue T1, orElse T1) T1 {
 	return orElse
 }
 
-func IfNil[T any](v T, defaultValue T) T {
-	return IfNilE(v, defaultValue, v)
+func IfNil[T any](v *T, defaultValue T) T {
+	return IfNilE(v, defaultValue, *v)
 }
 
-func IfNilE[T any](v T, whenTrue T, orElse T) T {
+func IfNilE[T any](v *T, whenTrue T, orElse T) T {
 	if v == nil {
 		return whenTrue
 	}
 	return orElse
 }
 
-func IfEmpty[T any](v T, defaultValue T) T {
-	return IfEmptyE(v, defaultValue, v)
+func IfEmpty[T any](v *T, defaultValue T) T {
+	return IfEmptyE(v, defaultValue, *v)
 }
 
-func IfEmptyE[T any](v T, whenTrue T, orElse T) T {
+func IfEmptyE[T any](v *T, whenTrue T, orElse T) T {
 	if eval.IsEmpty(v) {
 		return whenTrue
 	}
 	return orElse
 }
 
-func IfNotEmpty[T any](v T, defaultValue T) T {
-	return IfNotEmptyE(v, defaultValue, v)
+func IfNotEmpty[T any](v *T, defaultValue T) T {
+	return IfNotEmptyE(v, defaultValue, *v)
 }
 
-func IfNotEmptyE[T any](v T, whenTrue T, orElse T) T {
+func IfNotEmptyE[T any](v *T, whenTrue T, orElse T) T {
 	if !eval.IsEmpty(v) {
 		return whenTrue
 	}

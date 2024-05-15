@@ -50,8 +50,8 @@ func TestMain(m *testing.M) {
 	if mr, err = miniredis.Run(); err != nil {
 		log.Fatalf("error '%s' wasn't expected when initiated minimal redis for test", err.Error())
 	}
-	rm = NewRedis(mr.Addr(), "", 0)
-	rme = NewRedis("invalid-address", "", 0)
+	rm = NewRedis(mr.Addr())
+	rme = NewRedis("invalid-address")
 	code := m.Run()
 	os.Exit(code)
 }

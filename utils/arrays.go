@@ -12,7 +12,7 @@ import (
 	"github.com/evorts/kevlars/rules"
 )
 
-func InArray[T string | int | int64 | uint | uint64 | float32 | float64](arr []T, v T) bool {
+func InArray[T comparable](arr []T, v T) bool {
 	for _, av := range arr {
 		if av == v {
 			return true

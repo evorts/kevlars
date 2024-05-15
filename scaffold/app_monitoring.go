@@ -140,7 +140,7 @@ func (app *Application) healthDependenciesEchoHandler(c echo.Context) error {
 		DbKey.String():       make([]deps, 0),
 		InMemoryKey.String(): make([]deps, 0),
 	}
-	rules.WhenTrue(app.HasDB(), func() {
+	rules.WhenTrue(app.HasDBS(), func() {
 		for dbk, dbm := range app.dbs {
 			result[DbKey.String()] = append(result[DbKey.String()], deps{
 				name:   dbk,
@@ -149,7 +149,7 @@ func (app *Application) healthDependenciesEchoHandler(c echo.Context) error {
 		}
 	})
 	rules.WhenTrue(app.HasInMemory(), func() {
-		for ck, cm := range app.in_memories {
+		for ck, cm := range app.inMemories {
 			result[InMemoryKey.String()] = append(result[InMemoryKey.String()], deps{
 				name:   ck,
 				status: rules.WhenTrueR1(cm.Ping() == nil, func() string { return health.OK }, func() string { return health.NOK }),

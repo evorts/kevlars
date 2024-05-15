@@ -81,6 +81,10 @@ func (m *managerNoop) Driver() SupportedDriver {
 	return m.driver
 }
 
+func (m *managerNoop) DSN() string {
+	return ""
+}
+
 func (m *managerNoop) Ping() error {
 	return nil
 }

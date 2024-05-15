@@ -17,8 +17,10 @@ import (
 type IStorage interface {
 	WithDatabases() IApplication
 	DB(key string) db.Manager
-	HasDB() bool
+	HasDBS() bool
+	HasDB(key string) bool
 	DefaultDB() db.Manager
+	DefaultDBR() db.Manager
 
 	WithInMemories() IApplication
 	InMemory(key string) inmemory.Manager
@@ -76,6 +78,9 @@ func (app *Application) WithDatabases() IApplication {
 		app.dbs[dbk] = db.New(db.SupportedDriver(driver), dsn, opts...)
 		app.dbs[dbk].MustConnect(app.startContext)
 	}
+	if !app.HasDB(DefaultKey) {
+		panic("please define default database")
+	}
 	return app
 }
 
@@ -86,12 +91,26 @@ func (app *Application) DB(key string) db.Manager {
 	panic("database with key " + key + " not found")
 }
 
-func (app *Application) HasDB() bool {
+func (app *Application) HasDBS() bool {
 	return len(app.dbs) > 0
+}
+
+func (app *Application) HasDB(key string) bool {
+	if _, ok := app.dbs[key]; ok {
+		return true
+	}
+	return false
 }
 
 func (app *Application) DefaultDB() db.Manager {
 	return app.DB(DefaultKey)
+}
+
+func (app *Application) DefaultDBR() db.Manager {
+	if app.HasDB(DefaultKey + "_read") {
+		return app.DB(DefaultKey + "_read")
+	}
+	return app.DefaultDB()
 }
 
 func (app *Application) WithInMemories() IApplication {
@@ -141,7 +160,7 @@ func (app *Application) WithInMemories() IApplication {
 				}, func() {
 					opts = append(opts, inmemory.RedisWithTelemetry(telemetry.NewNoop()))
 				})
-				app.in_memories[ck] = inmemory.NewRedis(
+				app.inMemories[ck] = inmemory.NewRedis(
 					address,
 					opts...,
 				)
@@ -156,28 +175,28 @@ func (app *Application) WithInMemories() IApplication {
 				}, func() {
 					opts = append(opts, inmemory.ValKeyWithTelemetry(telemetry.NewNoop()))
 				})
-				app.in_memories[ck] = inmemory.NewValKey(
+				app.inMemories[ck] = inmemory.NewValKey(
 					address,
 					opts...,
 				)
 			})
 		}, func() {
-			app.in_memories[ck] = inmemory.NewNoop()
+			app.inMemories[ck] = inmemory.NewNoop()
 		})
-		app.in_memories[ck].MustConnect(app.startContext)
+		app.inMemories[ck].MustConnect(app.startContext)
 	}
 	return app
 }
 
 func (app *Application) InMemory(key string) inmemory.Manager {
-	if v, ok := app.in_memories[key]; ok {
+	if v, ok := app.inMemories[key]; ok {
 		return v
 	}
 	panic("cache manager with key " + key + " not found")
 }
 
 func (app *Application) HasInMemory() bool {
-	return len(app.in_memories) > 0
+	return len(app.inMemories) > 0
 }
 
 func (app *Application) DefaultInMemory() inmemory.Manager {
