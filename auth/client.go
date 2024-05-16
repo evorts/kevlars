@@ -22,7 +22,6 @@ import (
 	"github.com/evorts/kevlars/ts"
 	"github.com/evorts/kevlars/utils"
 	"github.com/huandu/go-sqlbuilder"
-	"io/fs"
 	"net/url"
 )
 
@@ -52,8 +51,8 @@ type clientManager struct {
 	dbr              db.Manager
 	dbm              *dbmate.DB
 	log              logger.Manager
-	fs               fs.FS
-	migrationTerms   func() bool
+	migrationDir     []string
+	migrationEnabled bool
 	lazyLoad         bool
 	mapAuthorization mapClientAuthorization
 }
@@ -138,7 +137,7 @@ func (m *clientManager) GetClientsWithScopesBy(ctx context.Context, by db.IHelpe
 		join %s cs on cs.client_id = c.id
 		%s`, tableClients, tableClientScope, qf)
 	rs := make(ClientsWithScopes, 0)
-	rows, err := m.dbr.Query(ctx, q, args...)
+	rows, err := m.dbr.Query(ctx, m.dbr.Rebind(q), args...)
 	defer func() {
 		rules.WhenTrue(rows != nil, func() {
 			_ = rows.Close()
@@ -259,11 +258,11 @@ func (m *clientManager) loadData() error {
 }
 
 func (m *clientManager) migrate() {
-	if !m.migrationTerms() || m.fs == nil {
+	if !m.migrationEnabled || m.migrationDir == nil || len(m.migrationDir) < 1 {
 		m.log.Info("migration terms not fulfilled or fs not defined")
 		return
 	}
-	m.dbMigrate().FS = m.fs
+	m.dbMigrate().MigrationsDir = m.migrationDir
 	m.log.Info("migrations:")
 	migrations, err := m.dbMigrate().FindMigrations()
 	if err != nil {
@@ -425,9 +424,8 @@ func NewClientManager(db db.Manager, opts ...common.Option[clientManager]) Clien
 		dbr:              db,
 		log:              logger.NewNoop(),
 		mapAuthorization: make(mapClientAuthorization),
-		migrationTerms: func() bool {
-			return false
-		},
+		migrationEnabled: false,
+		migrationDir:     []string{},
 	}
 	m.AddOptions(opts...)
 	return m

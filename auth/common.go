@@ -11,7 +11,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/evorts/kevlars/utils"
 	"net/http"
 	"strings"
@@ -64,7 +63,6 @@ func (s *Scopes) Scan(src interface{}) error {
 	case string:
 		err = json.Unmarshal([]byte(src.(string)), &arrOfString)
 	case []byte:
-		fmt.Println(string(src.([]byte)))
 		err = json.Unmarshal(src.([]byte), &arrOfString)
 	default:
 		err = errors.New("incompatible source type for scopes")

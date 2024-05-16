@@ -40,9 +40,15 @@ func WithScope(v string) Option {
 	})
 }
 
-func WithPortConfigPath(path string) Option {
+func WithPortRestConfigPath(path string) Option {
 	return optionFunc(func(app *Application) {
-		app.port = app.Config().GetInt(path)
+		app.portRest = app.Config().GetInt(path)
+	})
+}
+
+func WithPortGrpcConfigPath(path string) Option {
+	return optionFunc(func(app *Application) {
+		app.portGrpc = app.Config().GetInt(path)
 	})
 }
 

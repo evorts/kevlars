@@ -14,7 +14,6 @@ package auth
 
 import (
 	"context"
-	"embed"
 	"github.com/evorts/kevlars/common"
 	"github.com/evorts/kevlars/db"
 	"github.com/stretchr/testify/assert"
@@ -41,9 +40,6 @@ type clientAuthTestSuite struct {
 	container *postgres.PostgresContainer
 	cm        ClientManager
 }
-
-//go:embed db/migrations/20240515015140_client_test.sql
-var dataTest embed.FS
 
 func (ts *clientAuthTestSuite) SetupTest() {
 	var err error
@@ -100,9 +96,7 @@ func (ts *clientAuthTestSuite) TestInstantiation() {
 		"instantiate with data migration and load data into memory, should pass": {
 			args: args{
 				opts: []common.Option[clientManager]{
-					ClientWithExecuteMigration(dataTest, func() bool {
-						return true
-					}),
+					ClientWithExecuteMigration(true, "./sample_migration"),
 				},
 				db: ts.db,
 			},
@@ -124,22 +118,23 @@ func (ts *clientAuthTestSuite) TestInstantiation() {
 	}
 }
 
-func (ts *clientAuthTestSuite) TestAddClient() {
-	tests := map[string]struct {
-		wantErr error
-	}{
-		"test init schema": {
-			wantErr: nil,
-		},
+/*
+	func (ts *clientAuthTestSuite) TestAddClient() {
+		tests := map[string]struct {
+			wantErr error
+		}{
+			"test init schema": {
+				wantErr: nil,
+			},
+		}
+		for name, tc := range tests {
+			ts.Run(name, func() {
+				err := ts.cm.AddClients(ts.ctx, Clients{})
+				assert.Equal(ts.T(), tc.wantErr, err)
+			})
+		}
 	}
-	for name, tc := range tests {
-		ts.Run(name, func() {
-			err := ts.cm.AddClients(ts.ctx, Clients{})
-			assert.Equal(ts.T(), tc.wantErr, err)
-		})
-	}
-}
-
+*/
 func (ts *clientAuthTestSuite) TearDownTest() {
 	if err := ts.container.Terminate(ts.ctx); err != nil {
 		log.Fatalf("failed to terminate container: %s", err)

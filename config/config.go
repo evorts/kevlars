@@ -31,6 +31,7 @@ type Manager interface {
 	GetStringMapString(key string) map[string]string
 	GetStringMapStringOrElse(key string, elseValue map[string]string) map[string]string
 	GetStringSlice(key string) []string
+	GetStringSliceOrElse(key string, orElse []string) []string
 	GetMapArray(key string) []map[string]interface{}
 	GetTime(key string) time.Time
 	GetDuration(key string) time.Duration
@@ -147,6 +148,13 @@ func (c *configManager) GetStringMapString(key string) map[string]string {
 
 func (c *configManager) GetStringSlice(key string) []string {
 	return c.v.GetStringSlice(key)
+}
+
+func (c *configManager) GetStringSliceOrElse(key string, orElse []string) []string {
+	if v := c.v.GetStringSlice(key); v != nil {
+		return v
+	}
+	return orElse
 }
 
 func (c *configManager) GetTime(key string) time.Time {

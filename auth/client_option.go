@@ -11,7 +11,6 @@ import (
 	"github.com/evorts/kevlars/common"
 	"github.com/evorts/kevlars/db"
 	"github.com/evorts/kevlars/logger"
-	"io/fs"
 )
 
 func ClientWithLogger(v logger.Manager) common.Option[clientManager] {
@@ -32,9 +31,9 @@ func ClientWithLazyLoadData(v bool) common.Option[clientManager] {
 	})
 }
 
-func ClientWithExecuteMigration(fs fs.FS, migrationTerms func() bool) common.Option[clientManager] {
+func ClientWithExecuteMigration(enabled bool, dir ...string) common.Option[clientManager] {
 	return common.OptionFunc[clientManager](func(c *clientManager) {
-		c.fs = fs
-		c.migrationTerms = migrationTerms
+		c.migrationDir = dir
+		c.migrationEnabled = enabled
 	})
 }
