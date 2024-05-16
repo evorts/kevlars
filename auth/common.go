@@ -19,10 +19,25 @@ import (
 type Scope string
 
 const (
-	ScopeRead   Scope = "read"
-	ScopeWrite  Scope = "write"
-	ScopeDelete Scope = "delete"
+	ScopeRead      Scope = "read"
+	ScopeWrite     Scope = "write"
+	ScopeDelete    Scope = "delete"
+	ScopeUndefined Scope = "undefined"
 )
+
+//goland:noinspection GoMixedReceiverTypes
+func (s Scope) FromHttpMethod(method string) Scope {
+	switch strings.ToUpper(method) {
+	case http.MethodGet:
+		return ScopeRead
+	case http.MethodPost, http.MethodPut, http.MethodPatch:
+		return ScopeWrite
+	case http.MethodDelete:
+		return ScopeDelete
+	default:
+		return ScopeUndefined
+	}
+}
 
 //goland:noinspection GoMixedReceiverTypes
 func (s Scope) String() string { return string(s) }

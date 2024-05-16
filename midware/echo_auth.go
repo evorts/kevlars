@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/evorts/kevlars/auth"
 	"github.com/evorts/kevlars/contracts"
+	"github.com/evorts/kevlars/logger"
 	"github.com/evorts/kevlars/requests"
 	"github.com/evorts/kevlars/utils"
 	"net/http"
@@ -14,6 +15,33 @@ import (
 type ApiKeySecretMap struct {
 	Key      string `mapstructure:"key" json:"key"`
 	ClientId string `mapstructure:"client_id" json:"client_id"`
+}
+
+func EchoWithClientAuthorization(ac auth.ClientManager, log logger.Manager) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			req := c.Request()
+			resource := req.URL.Path
+			method := req.Method
+			key := apiKeyFromHeader(req)
+			scope := auth.Scope("").FromHttpMethod(req.Method).String()
+			cm, allowed := ac.IsAllowed(key, resource, scope)
+			if !allowed {
+				log.ErrorWithProps(map[string]interface{}{
+					"cid":    cm,
+					"method": method,
+					"path":   resource,
+				}, "request not allowed")
+				return c.JSON(contracts.NewResponseFail(http.StatusUnauthorized, "Not authorized to access this resource", contracts.ErrorDetail{
+					Code: "ERR:NOK:AUTH",
+					Errors: map[string]string{
+						"err": "key not acceptable",
+					},
+				}))
+			}
+			return next(c)
+		}
+	}
 }
 
 func echoWithAuthApiKeySecretsEligibleClients(maps []ApiKeySecretMap, compareFunc func(items []string, item string) bool, clientIds ...string) echo.MiddlewareFunc {
