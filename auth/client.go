@@ -335,6 +335,7 @@ func (m *clientManager) Init() error {
 
 func (m *clientManager) initSchema(ctx context.Context) error {
 	driver := m.dbw.Driver()
+	flavor := m.getFlavorByDriver(driver)
 	// to avoid unnecessary execution of schema scaffolding,
 	// check the existence of tables -- should return total table of 2
 	total, err := m.tableCheck(ctx, driver)
@@ -373,7 +374,7 @@ func (m *clientManager) initSchema(ctx context.Context) error {
 	}
 	tx := m.dbw.MustBegin(ctx, &sql.TxOptions{})
 	// create clients table
-	q := builderClients.String()
+	q, _ := builderClients.BuildWithFlavor(flavor)
 	_, err = tx.Exec(q)
 	if err != nil {
 		_ = tx.Rollback()
@@ -388,7 +389,8 @@ func (m *clientManager) initSchema(ctx context.Context) error {
 		}
 	}
 	// create client scopes table
-	_, err = tx.Exec(builderClientScopes.String())
+	q, _ = builderClientScopes.BuildWithFlavor(flavor)
+	_, err = tx.Exec(q)
 	if err != nil {
 		_ = tx.Rollback()
 		return err

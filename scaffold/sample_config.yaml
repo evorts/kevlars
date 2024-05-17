@@ -14,14 +14,20 @@ app:
     tz: "Asia/Jakarta"
     use_local_tz: true # default to Asia/Jakarta
 
+#### Feature Flag ###
+feature_flag:
+  lazy_load_data: false
+  migrations:
+    enabled: true
+    dir: []
+
 #### Auth Section ###
 auth:
   client:
     lazy_load_data: false
     migrations:
       enabled: true
-      dir:
-        - ""
+      dir: []
 
 #### Open Telemetry Section ####
 telemetry:

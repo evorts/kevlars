@@ -18,9 +18,12 @@ type IAuth interface {
 }
 
 func (app *Application) WithClientAuthorization() IApplication {
+	// since this feature are tightly dependent with database then need to ensure database are instantiated
+	app.WithDatabases()
 	app.authClient = auth.NewClientManager(
 		app.DefaultDB(),
 		auth.ClientWithDatabaseRead(app.DefaultDBR()),
+		auth.ClientWithLogger(app.Log()),
 	)
 	if enabled := app.Config().GetBool("auth.client.migrations.enabled"); enabled {
 		app.authClient.AddOptions(

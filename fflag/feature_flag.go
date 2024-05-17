@@ -12,10 +12,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/amacneil/dbmate/v2/pkg/dbmate"
 	"github.com/evorts/kevlars/common"
 	"github.com/evorts/kevlars/db"
+	"github.com/evorts/kevlars/logger"
+	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/utils"
 	"github.com/huandu/go-sqlbuilder"
+	"net/url"
 	"time"
 )
 
@@ -28,24 +32,42 @@ type Record struct {
 	UpdatedAt     *time.Time `db:"updated_at"`
 }
 
+type Records []*Record
+
 type Manager interface {
 	Add(ctx context.Context, records ...Record) error
 	ExecWhenEnabled(ctx context.Context, feature string, f func())
 	IsEnabled(ctx context.Context, feature string) bool
+	getFeaturesBy(ctx context.Context, by db.IHelper) (Records, error)
 
 	Init() error
 	MustInit() Manager
+	AddOptions(opts ...common.Option[manager]) Manager
+
+	migrate()
+	loadData() error
+	dbMigrate() *dbmate.DB
 }
 
 type manager struct {
 	dbw db.Manager
 	dbr db.Manager
+	dbm *dbmate.DB
+	log logger.Manager
+
+	migrationDir     []string
+	migrationEnabled bool
+
+	dataLoaded   bool
+	lazyLoadData bool
+	mapFeature   map[string]bool
 }
 
 const (
 	table = "feature_flag"
 )
 
+//goland:noinspection SqlResolve
 var (
 	columns                  = []string{"feature", "enabled", "last_changed_by"}
 	tableExistenceCheckQuery = map[db.SupportedDriver][]string{
@@ -58,7 +80,7 @@ var (
 		db.DriverPostgreSQL: {
 			{"id", "serial", "primary key"},
 			{"feature", "varchar(50)", "not null"},
-			{"enabled", "tinyint", "default 0"},
+			{"enabled", "boolean", "default false"},
 			{"last_changed_by", "varchar(30)"},
 			{"created_at", "timestamp with time zone", "default current_timestamp"},
 			{"updated_at", "timestamp with time zone"},
@@ -79,12 +101,20 @@ func (m *manager) ExecWhenEnabled(ctx context.Context, feature string, f func())
 }
 
 func (m *manager) IsEnabled(ctx context.Context, feature string) bool {
+	rules.WhenTrue(m.lazyLoadData, func() {
+		m.log.Info(m.loadData())
+	})
+	if m.dataLoaded {
+		if v, ok := m.mapFeature[feature]; ok {
+			return v
+		}
+	}
 	q := m.dbr.Rebind(`select enabled from ` + table + ` where feature = ?`)
-	var value sql.NullInt32
+	var value sql.NullBool
 	if err := m.dbr.QueryRow(ctx, q, feature).Scan(&value); err != nil {
 		return false
 	}
-	return value.Int32 == 1
+	return value.Bool
 }
 
 func (m *manager) Add(ctx context.Context, records ...Record) error {
@@ -94,14 +124,67 @@ func (m *manager) Add(ctx context.Context, records ...Record) error {
 	for _, record := range records {
 		builder.Values(record.Feature, record.Enabled, record.LastChangedBy)
 	}
-	sql, args := builder.BuildWithFlavor(m.dbw.Driver().ToSqlBuilderFlavor())
-	_, err := m.dbw.Exec(ctx, sql, args...)
+	q, args := builder.BuildWithFlavor(m.dbw.Driver().ToSqlBuilderFlavor())
+	_, err := m.dbw.Exec(ctx, q, args...)
 	return err
+}
+
+func (m *manager) AddOptions(opts ...common.Option[manager]) Manager {
+	for _, opt := range opts {
+		opt.Apply(m)
+	}
+	return m
+}
+
+func (m *manager) getFeaturesBy(ctx context.Context, by db.IHelper) (Records, error) {
+	qf, args := by.BuildSqlAndArgsWithWherePrefix()
+	q := fmt.Sprintf(`select id, feature, enabled, last_changed_by, created_at, updated_at from %s where %s`, table, qf)
+	rs := make(Records, 0)
+	rows, err := m.dbr.Query(ctx, m.dbr.Rebind(q), args...)
+	defer func() {
+		rules.WhenTrue(rows != nil, func() {
+			_ = rows.Close()
+		})
+	}()
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return rs, db.ErrorRecordNotFound
+		}
+		return rs, err
+	}
+	for rows.Next() {
+		var (
+			record        Record
+			lastChangedBy sql.NullString
+			updatedAt     sql.NullTime
+		)
+		if err = rows.Scan(
+			&record.Id, &record.Feature, &record.Enabled,
+			&lastChangedBy, &record.CreatedAt, &updatedAt,
+		); err != nil {
+			return rs, err
+		}
+		record.LastChangedBy = lastChangedBy.String
+		if updatedAt.Valid {
+			record.UpdatedAt = &updatedAt.Time
+		}
+		rs = append(rs, &record)
+	}
+	return rs, nil
 }
 
 func (m *manager) Init() error {
 	ctx := context.Background()
-	return m.initSchema(ctx)
+	if err := m.initSchema(ctx); err != nil {
+		return err
+	}
+	m.migrate()
+	if !m.lazyLoadData {
+		if err := m.loadData(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (m *manager) MustInit() Manager {
@@ -109,6 +192,73 @@ func (m *manager) MustInit() Manager {
 		panic(err)
 	}
 	return m
+}
+
+func (m *manager) loadData() error {
+	if len(m.mapFeature) > 0 {
+		return nil
+	}
+	var (
+		page  = 1
+		limit = 20
+	)
+	for {
+		items, err := m.getFeaturesBy(
+			context.Background(),
+			db.NewHelper(
+				db.SeparatorAND,
+				db.WithPagination(page, limit),
+			),
+		)
+		if err != nil {
+			return err
+		}
+		// map items into map client authorization
+		for _, item := range items {
+			m.mapFeature[item.Feature] = item.Enabled
+		}
+		if len(items) < limit {
+			break
+		}
+		page++
+	}
+	m.dataLoaded = true
+	return nil
+}
+
+func (m *manager) migrate() {
+	if !m.migrationEnabled || m.migrationDir == nil || len(m.migrationDir) < 1 {
+		m.log.Info("migration terms not fulfilled or fs not defined")
+		return
+	}
+	m.dbMigrate().MigrationsDir = m.migrationDir
+	m.log.Info("migrations:")
+	migrations, err := m.dbMigrate().FindMigrations()
+	if err != nil {
+		panic(err)
+	}
+	for _, migration := range migrations {
+		m.log.Info(migration.Version, migration.FilePath)
+	}
+	m.log.Info("applying...")
+	err = m.dbMigrate().Migrate()
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (m *manager) dbMigrate() *dbmate.DB {
+	if m.dbm != nil {
+		return m.dbm
+	}
+	u, err := url.Parse(m.dbw.DSN())
+	if err != nil {
+		m.log.Error(err.Error())
+		return nil
+	}
+	m.dbm = dbmate.New(u)
+	return m.dbm
 }
 
 func (m *manager) getFlavorByDriver(driver db.SupportedDriver) sqlbuilder.Flavor {
@@ -147,7 +297,7 @@ func (m *manager) initSchema(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if total < 1 {
+	if total >= 1 {
 		return nil
 	}
 	columnDefinitions := utils.GetValueOnMap(tableColumnDefinitions, driver, [][]string{})
@@ -181,9 +331,11 @@ func (m *manager) initSchema(ctx context.Context) error {
 }
 
 func New(db db.Manager, opts ...common.Option[manager]) Manager {
-	m := &manager{dbw: db, dbr: db}
-	for _, opt := range opts {
-		opt.Apply(m)
+	m := &manager{
+		dbw: db, dbr: db, log: logger.NewNoop(),
+		mapFeature:   make(map[string]bool),
+		migrationDir: make([]string, 0),
 	}
+	m.AddOptions(opts...)
 	return m
 }
