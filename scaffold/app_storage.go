@@ -19,6 +19,7 @@ type IStorage interface {
 	DB(key string) db.Manager
 	HasDBS() bool
 	HasDB(key string) bool
+	HasDefaultDB() bool
 	DefaultDB() db.Manager
 	DefaultDBR() db.Manager
 
@@ -29,6 +30,10 @@ type IStorage interface {
 }
 
 func (app *Application) WithDatabases() IApplication {
+	// no need to reinitiate when its already initiate
+	if app.HasDBS() {
+		return app
+	}
 	// get configuration for multi database
 	// expected result as follows:
 	// {
@@ -100,6 +105,10 @@ func (app *Application) HasDB(key string) bool {
 		return true
 	}
 	return false
+}
+
+func (app *Application) HasDefaultDB() bool {
+	return app.HasDB(DefaultKey)
 }
 
 func (app *Application) DefaultDB() db.Manager {

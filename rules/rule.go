@@ -166,22 +166,22 @@ func IfNilE[T any](v *T, whenTrue T, orElse T) T {
 	return orElse
 }
 
-func IfEmpty[T any](v *T, defaultValue T) T {
-	return IfEmptyE(v, defaultValue, *v)
+func IfEmpty[T comparable](v T, defaultValue T) T {
+	return IfEmptyE(v, defaultValue, v)
 }
 
-func IfEmptyE[T any](v *T, whenTrue T, orElse T) T {
+func IfEmptyE[T comparable](v T, whenTrue T, orElse T) T {
 	if eval.IsEmpty(v) {
 		return whenTrue
 	}
 	return orElse
 }
 
-func IfNotEmpty[T any](v *T, defaultValue T) T {
-	return IfNotEmptyE(v, defaultValue, *v)
+func IfNotEmpty[T comparable](v T, defaultValue T) T {
+	return IfNotEmptyE(v, defaultValue, v)
 }
 
-func IfNotEmptyE[T any](v *T, whenTrue T, orElse T) T {
+func IfNotEmptyE[T comparable](v T, whenTrue T, orElse T) T {
 	if !eval.IsEmpty(v) {
 		return whenTrue
 	}

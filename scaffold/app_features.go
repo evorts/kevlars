@@ -16,6 +16,8 @@ type IFeatureFlag interface {
 }
 
 func (app *Application) WithFeatureFlag() IApplication {
+	// since this feature are tightly dependent with database then need to ensure database are instantiated
+	app.WithDatabases()
 	app.featureFlag = fflag.New(app.DefaultDB())
 	_ = app.featureFlag.Init()
 	return app

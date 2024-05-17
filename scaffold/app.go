@@ -130,10 +130,8 @@ func (app *Application) MaskedHeaders() []string {
 
 func NewApp(opts ...Option) IApplication {
 	app := &Application{
-		inMemories: make(map[string]inmemory.Manager),
-		dbs: map[string]db.Manager{
-			DefaultKey: db.NewNoop(),
-		},
+		inMemories:  make(map[string]inmemory.Manager),
+		dbs:         map[string]db.Manager{},
 		restClients: make(map[string]rest.Manager),
 		grpcClients: make(map[string]rpc.ClientManager),
 		soapClients: make(map[string]soap.Manager),
