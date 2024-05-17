@@ -138,7 +138,7 @@ func (m *manager) AddOptions(opts ...common.Option[manager]) Manager {
 
 func (m *manager) getFeaturesBy(ctx context.Context, by db.IHelper) (Records, error) {
 	qf, args := by.BuildSqlAndArgsWithWherePrefix()
-	q := fmt.Sprintf(`select id, feature, enabled, last_changed_by, created_at, updated_at from %s where %s`, table, qf)
+	q := fmt.Sprintf(`select id, feature, enabled, last_changed_by, created_at, updated_at from %s %s`, table, qf)
 	rs := make(Records, 0)
 	rows, err := m.dbr.Query(ctx, m.dbr.Rebind(q), args...)
 	defer func() {
