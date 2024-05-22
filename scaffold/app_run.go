@@ -95,8 +95,8 @@ func (app *Application) RunRestApiUseEcho(run func(a *Application, e *echo.Echo)
 			}
 			req := c.Request()
 			ctx := req.Context()
-			c.Set(requests.ContextId.String(), reqId)
-			newCtx := context.WithValue(ctx, requests.ContextId, reqId)
+			c.Set(requests.ContextRequestId.String(), reqId)
+			newCtx := context.WithValue(ctx, requests.ContextRequestId, reqId)
 			newReq := req.WithContext(newCtx)
 			c.SetRequest(newReq)
 		},

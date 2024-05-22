@@ -50,6 +50,7 @@ type clientManager struct {
 	dbw              db.Manager
 	dbr              db.Manager
 	dbm              *dbmate.DB
+	driver           db.SupportedDriver
 	log              logger.Manager
 	migrationDir     []string
 	migrationEnabled bool
@@ -64,7 +65,7 @@ const (
 
 //goland:noinspection SqlCurrentSchemaInspection,SqlResolve
 var (
-	tableExistenceCheckQuery = map[db.SupportedDriver][]string{
+	clientTableExistenceCheckQuery = map[db.SupportedDriver][]string{
 		db.DriverPostgreSQL: {
 			fmt.Sprintf(`select count(table_name) as tableCount from information_schema.tables ist
 				       where ist.table_name in ('%s','%s')`, tableClients, tableClientScope),
@@ -292,19 +293,12 @@ func (m *clientManager) dbMigrate() *dbmate.DB {
 	return m.dbm
 }
 
-func (m *clientManager) getFlavorByDriver(driver db.SupportedDriver) sqlbuilder.Flavor {
-	if driver == db.DriverPostgreSQL {
-		return sqlbuilder.PostgreSQL
-	}
-	panic("unsupported flavor")
-}
-
 func (m *clientManager) tableCheck(ctx context.Context, driver db.SupportedDriver) (int, error) {
 	total := 0
-	if !utils.KeyExistsInMap(tableExistenceCheckQuery, driver) {
+	if !utils.KeyExistsInMap(clientTableExistenceCheckQuery, driver) {
 		return total, errors.New("driver not supported by table existence check")
 	}
-	tableChecks := utils.GetValueOnMap(tableExistenceCheckQuery, driver, []string{})
+	tableChecks := utils.GetValueOnMap(clientTableExistenceCheckQuery, driver, []string{})
 	if len(tableChecks) < 1 {
 		return total, errors.New("no table existence check query exists")
 	}
@@ -335,7 +329,7 @@ func (m *clientManager) Init() error {
 
 func (m *clientManager) initSchema(ctx context.Context) error {
 	driver := m.dbw.Driver()
-	flavor := m.getFlavorByDriver(driver)
+	flavor := getFlavorByDriver(driver)
 	// to avoid unnecessary execution of schema scaffolding,
 	// check the existence of tables -- should return total table of 2
 	total, err := m.tableCheck(ctx, driver)
@@ -420,10 +414,15 @@ func (m *clientManager) AddOptions(opts ...common.Option[clientManager]) ClientM
 	return m
 }
 
-func NewClientManager(db db.Manager, opts ...common.Option[clientManager]) ClientManager {
+func NewClientManager(dbm db.Manager, opts ...common.Option[clientManager]) ClientManager {
 	m := &clientManager{
-		dbw:              db,
-		dbr:              db,
+		dbw: dbm,
+		dbr: dbm,
+		driver: rules.WhenTrueR1(dbm == nil, func() db.SupportedDriver {
+			return db.DriverPostgreSQL
+		}, func() db.SupportedDriver {
+			return dbm.Driver()
+		}),
 		log:              logger.NewNoop(),
 		mapAuthorization: make(mapClientAuthorization),
 		migrationEnabled: false,

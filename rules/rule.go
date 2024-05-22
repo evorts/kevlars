@@ -155,12 +155,12 @@ func Iif[T1 any](expression bool, whenTrue T1, orElse T1) T1 {
 	return orElse
 }
 
-func IfNil[T any](v *T, defaultValue T) T {
-	return IfNilE(v, defaultValue, *v)
+func IfNil[T comparable](v T, defaultValue T) T {
+	return IfNilE(v, defaultValue, v)
 }
 
-func IfNilE[T any](v *T, whenTrue T, orElse T) T {
-	if v == nil {
+func IfNilE[T comparable](v T, whenTrue T, orElse T) T {
+	if eval.IsNil(v) {
 		return whenTrue
 	}
 	return orElse

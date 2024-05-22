@@ -48,10 +48,10 @@ func IsHttpError(httpCode int) bool {
 
 // IdEcho get request id from echo context
 func IdEcho(ec echo.Context) string {
-	return rules.WhenTrueR1(eval.IsNil(ec.Get(ContextId.String())), func() string {
+	return rules.WhenTrueR1(eval.IsNil(ec.Get(ContextRequestId.String())), func() string {
 		return ""
 	}, func() string {
-		return ec.Get(ContextId.String()).(string)
+		return ec.Get(ContextRequestId.String()).(string)
 	})
 }
 
@@ -88,10 +88,10 @@ func ClientIdEcho(ec echo.Context) string {
 
 // Id get request id from context
 func Id(ctx context.Context) string {
-	return rules.WhenTrueR1(eval.IsNil(ctx.Value(ContextId)), func() string {
+	return rules.WhenTrueR1(eval.IsNil(ctx.Value(ContextRequestId)), func() string {
 		return ""
 	}, func() string {
-		return ctx.Value(ContextId).(string)
+		return ctx.Value(ContextRequestId).(string)
 	})
 }
 

@@ -90,7 +90,7 @@ func EchoWithAuthApiKeySecrets(maps []ApiKeySecretMap) echo.MiddlewareFunc {
 	return EchoWithAuthApiKeySecretsWithWhitelistClient(maps)
 }
 
-func EchoWithAuthToken(am auth.OAuthManager, realm, clientID string, clientSecret string, permissionScope string) echo.MiddlewareFunc {
+func EchoWithAuthToken(am auth.UserManager, realm, clientID string, clientSecret string, permissionScope string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			req := c.Request()

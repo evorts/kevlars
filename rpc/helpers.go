@@ -83,7 +83,7 @@ func GrpcLogRequestPayloadInterceptor(inJson bool, logWithProps func(props map[s
 		})
 		logWithProps(map[string]interface{}{
 			"method": method,
-			"req_id": ctx.Value(requests.ContextId),
+			"req_id": ctx.Value(requests.ContextRequestId),
 		}, v)
 		iRes := invoker(ctx, method, req, reply, cc, opts...)
 		return iRes

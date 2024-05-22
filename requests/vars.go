@@ -15,8 +15,9 @@ import (
 type RequestContext string
 
 const (
-	ContextClientId RequestContext = "client_id"
-	ContextId       RequestContext = "req_id"
+	ContextClientId  RequestContext = "client_id"
+	ContextRequestId RequestContext = "request_id"
+	ContextSignature RequestContext = "signature"
 )
 
 func (t RequestContext) String() string {

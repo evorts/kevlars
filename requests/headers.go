@@ -10,8 +10,13 @@ package requests
 type Header string
 
 const (
-	HeaderRestApiKey         Header = "X-REST-API-KEY"
-	HeaderRestClientId       Header = "X-REST-CLIENT-ID"
-	HeaderRestSignature      Header = "X-REST-SIGNATURE"
-	HeaderRestIdempotencyKey Header = "X-REST-IDEMPOTENCY-KEY"
+	HeaderAuthorization       Header = "Authorization"
+	HeaderAuthorizationBearer Header = "Bearer"
+
+	HeaderApiKey         Header = "X-API-KEY"
+	HeaderClientId       Header = "X-CLIENT-ID"
+	HeaderSignature      Header = "X-SIGNATURE"
+	HeaderIdempotencyKey Header = "X-IDEMPOTENCY-KEY"
 )
+
+func (h Header) String() string { return string(h) }

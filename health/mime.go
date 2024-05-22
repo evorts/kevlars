@@ -4592,8 +4592,6 @@ const (
 	FontWoff2 = "font/woff2"
 )
 
-const ()
-
 const (
 	// ImageAces is the constant for the mime type "image/aces".
 	ImageAces = "image/aces"
