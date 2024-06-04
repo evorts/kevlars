@@ -8,11 +8,11 @@
 package scaffold
 
 import (
+	"github.com/evorts/kevlars/ctime"
 	"github.com/evorts/kevlars/health"
 	"github.com/evorts/kevlars/logger"
 	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/telemetry"
-	"github.com/evorts/kevlars/ts"
 	"github.com/evorts/kevlars/utils"
 	"github.com/labstack/echo/v4"
 	"net/http"
@@ -67,7 +67,7 @@ func (app *Application) withLogger() IApplication {
 	}
 	rules.WhenTrue(app.Config().GetBool(AppLogUseCustomTimezone.String()), func() {
 		if v := app.Config().GetString(AppLogTimezone.String()); len(v) > 0 {
-			opts = append(opts, logger.WithTZTimeFormatter(ts.TimeZone(v)))
+			opts = append(opts, logger.WithTZTimeFormatter(ctime.TimeZone(v)))
 		}
 	})
 	app.log = logger.NewLogger(logger.LogLevel(logLevel), os.Stdout, opts...)

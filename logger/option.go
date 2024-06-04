@@ -8,7 +8,7 @@
 
 package logger
 
-import "github.com/evorts/kevlars/ts"
+import "github.com/evorts/kevlars/ctime"
 
 type Option interface {
 	apply(m *manager)
@@ -26,7 +26,7 @@ func WithServiceName(v string) Option {
 	})
 }
 
-func WithTZTimeFormatter(v ts.TimeZone) Option {
+func WithTZTimeFormatter(v ctime.TimeZone) Option {
 	return option(func(m *manager) {
 		if f, err := newTZFormatter(v); err == nil {
 			m.f = f

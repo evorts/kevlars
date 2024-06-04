@@ -16,26 +16,31 @@ import (
 	_ "github.com/amacneil/dbmate/v2/pkg/driver/mysql"
 	_ "github.com/amacneil/dbmate/v2/pkg/driver/postgres"
 	"github.com/evorts/kevlars/common"
+	"github.com/evorts/kevlars/ctime"
 	"github.com/evorts/kevlars/db"
 	"github.com/evorts/kevlars/logger"
 	"github.com/evorts/kevlars/rules"
-	"github.com/evorts/kevlars/ts"
+	"github.com/evorts/kevlars/rules/eval"
 	"github.com/evorts/kevlars/utils"
 	"github.com/huandu/go-sqlbuilder"
+	"github.com/lib/pq"
 	"net/url"
+	"strings"
 )
 
 type ClientManager interface {
-	AddClients(ctx context.Context, items Clients) error
-	AddScopes(ctx context.Context, items ClientScopes) error
-	AddClientsWithScopes(ctx context.Context, items ClientWithScopes) error
+	AddClient(ctx context.Context, items Clients) (Clients, error)
+	AddScope(ctx context.Context, items ClientScopes) (ClientScopes, error)
+	AddClientWithScopes(ctx context.Context, item ClientWithScopes) (*ClientWithScopes, error)
 
 	GetClientsWithScopesBy(ctx context.Context, by db.IHelper) (ClientsWithScopes, error)
 
 	VoidClientsByIds(ctx context.Context, ids ...int) error
 	VoidScopeByIds(ctx context.Context, id ...int) error
 
-	IsAllowed(secret, resource, scope string) (clientName string, allowed bool)
+	ModifyClient(ctx context.Context, items Clients) error
+
+	IsAllowed(secret, resource string, scope Scope) (clientName string, allowed bool)
 
 	Init() error
 	MustInit() ClientManager
@@ -65,6 +70,11 @@ const (
 
 //goland:noinspection SqlCurrentSchemaInspection,SqlResolve
 var (
+	clientCustomDefinitions = map[db.SupportedDriver][]string{
+		db.DriverPostgreSQL: {
+			fmt.Sprintf(`CREATE TYPE client_scope AS ENUM('read', 'write', 'delete', 'undefined')`),
+		},
+	}
 	clientTableExistenceCheckQuery = map[db.SupportedDriver][]string{
 		db.DriverPostgreSQL: {
 			fmt.Sprintf(`select count(table_name) as tableCount from information_schema.tables ist
@@ -74,7 +84,7 @@ var (
 	clientsColumnsDefinition = map[db.SupportedDriver][][]string{
 		db.DriverPostgreSQL: {
 			{"id", "serial", "primary key"},
-			{"name", "varchar(25)", "not null"},
+			{"name", "varchar(45)", "not null"},
 			{"secret", "varchar(128)", "not null"},
 			{"expired_at", "timestamp with time zone"},
 			{"disabled", "boolean", "default false"},
@@ -94,8 +104,8 @@ var (
 			{"id", "serial", "primary key"},
 			{"client_id", "int"},
 			{"constraint", "fk_" + tableClientScope + "_client_id", "foreign key (client_id)", "references " + tableClients + "(id)"},
-			{"resource", "varchar(150)", "not null"},
-			{"scopes", "jsonb", "default '[]'::jsonb"},
+			{"resource", "varchar(255)", "not null"},
+			{"scopes", "client_scope[]", "default array[]::client_scope[]"},
 			{"disabled", "boolean", "default false"},
 			{"created_at", "timestamp with time zone", "default current_timestamp"},
 			{"updated_at", "timestamp with time zone"},
@@ -109,36 +119,186 @@ var (
 	}
 )
 
-func (m *clientManager) AddClients(ctx context.Context, items Clients) error {
+var (
+	// addClientQuery
+	addClientQuery = map[db.SupportedDriver]struct {
+		placeholder func(int) []string
+		query       func(v string) string
+	}{
+		db.DriverPostgreSQL: {
+			placeholder: func(repeat int) []string {
+				return db.PlaceholderRepeat(
+					fmt.Sprintf(
+						`(%s,CASE WHEN ? THEN current_timestamp END)`,
+						strings.Join(utils.RepeatInSlice("?", 4), ","),
+					), repeat,
+				)
+			},
+			query: func(v string) string {
+				return `INSERT INTO ` + tableClients + `(name, secret, disabled, expired_at, disabled_at)
+					VALUES ` + v + `
+					RETURNING id, name, disabled, expired_at, created_at, disabled_at
+		`
+			},
+		},
+	}
+	// addScopeQuery
+	addScopeQuery = map[db.SupportedDriver]struct {
+		placeholder func(int) []string
+		query       func(v string) string
+	}{
+		db.DriverPostgreSQL: {
+			placeholder: func(repeat int) []string {
+				return db.PlaceholderRepeat(
+					fmt.Sprintf(
+						`(%s,CASE WHEN ? THEN current_timestamp END)`,
+						strings.Join(utils.RepeatInSlice("?", 4), ","),
+					), repeat,
+				)
+			},
+			query: func(v string) string {
+				return `INSERT INTO ` + tableClientScope + `(client_id, resource, scopes, disabled, disabled_at)
+						VALUES ` + v + `
+						RETURNING id, client_id, resource, scopes, disabled, created_at, disabled_at
+				`
+			},
+		},
+	}
+
+	getClientWithScopesByQuery = map[db.SupportedDriver]struct {
+		query func(qf string) string
+	}{
+		db.DriverPostgreSQL: {
+			query: func(qf string) string {
+				return `SELECT 
+		    				c.id, c.name, c.secret, c.expired_at, c.disabled, 
+		    				c.created_at, c.updated_at, c.disabled_at,
+		    				cs.id as scope_id, cs.resource, cs.scopes, cs.disabled as scope_disabled,
+		    				cs.created_at as scope_created_at, cs.updated_at as scope_updated_at,
+		    				cs.disabled_at as scope_disabled_at
+						FROM` + " " + tableClients + ` c JOIN ` + tableClientScope +
+					` cs ON cs.client_id = c.id ` + qf
+			},
+		},
+	}
+)
+
+func (m *clientManager) ModifyClient(ctx context.Context, items Clients) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (m *clientManager) AddScopes(ctx context.Context, items ClientScopes) error {
-	//TODO implement me
-	panic("implement me")
+func (m *clientManager) AddClient(ctx context.Context, items Clients) (Clients, error) {
+	rs := make(Clients, 0)
+	if eval.IsEmpty(items) {
+		return rs, db.ErrorEmptyArguments
+	}
+	placeholders := addClientQuery[m.driver].placeholder(len(items))
+	args := make([]interface{}, 0)
+	for _, item := range items {
+		args = append(args, item.Name, item.Secret, item.Disabled, item.ExpiredAt, item.Disabled)
+	}
+	q := addClientQuery[m.driver].query(strings.Join(placeholders, ","))
+	rows, err := m.dbw.Query(ctx, m.dbw.Rebind(q), args...)
+	defer func() {
+		rules.WhenTrue(rows != nil, func() {
+			_ = rows.Close()
+		})
+	}()
+	if err != nil {
+		return rs, err
+	}
+	for rows.Next() {
+		var item Client
+		if err = rows.StructScan(&item); err != nil {
+			return rs, err
+		}
+		rs = append(rs, &item)
+	}
+	return rs, nil
 }
 
-func (m *clientManager) AddClientsWithScopes(ctx context.Context, items ClientWithScopes) error {
-	//TODO implement me
-	panic("implement me")
+func (m *clientManager) AddScope(ctx context.Context, items ClientScopes) (ClientScopes, error) {
+	rs := make(ClientScopes, 0)
+	if eval.IsEmpty(items) {
+		return rs, db.ErrorEmptyArguments
+	}
+	// build select values
+	placeholders := addScopeQuery[m.driver].placeholder(len(items))
+	args := make([]interface{}, 0)
+	for _, item := range items {
+		args = append(args, item.ClientID, item.Resource, pq.Array(item.Scopes), item.Disabled, item.Disabled)
+	}
+	q := addScopeQuery[m.driver].query(strings.Join(placeholders, ","))
+	rows, err := m.dbw.Query(ctx, m.dbw.Rebind(q), args...)
+	defer func() {
+		rules.WhenTrue(rows != nil, func() {
+			_ = rows.Close()
+		})
+	}()
+	if err != nil {
+		return rs, err
+	}
+	for rows.Next() {
+		var item ClientScope
+		if err = rows.StructScan(&item); err != nil {
+			return rs, err
+		}
+		rs = append(rs, &item)
+	}
+	return rs, nil
+}
+
+func (m *clientManager) AddClientWithScopes(ctx context.Context, item ClientWithScopes) (*ClientWithScopes, error) {
+	// start tx
+	tx := m.dbw.MustBegin(ctx, nil)
+	// add client
+	ph := addClientQuery[m.driver].placeholder(1)
+	q := addClientQuery[m.driver].query(strings.Join(ph, ","))
+	var client Client
+	err := tx.QueryRowx(tx.Rebind(q), item.Name, item.Secret, item.Disabled, item.ExpiredAt, item.Disabled).StructScan(&client)
+	if err != nil {
+		_ = tx.Rollback()
+		return nil, err
+	}
+	rs := &ClientWithScopes{Client: &client, Scopes: make(ClientScopes, 0)}
+	// add scopes
+	if item.Scopes == nil || len(item.Scopes) < 1 {
+		return rs, tx.Commit()
+	}
+	ph = addScopeQuery[m.driver].placeholder(len(item.Scopes))
+	q = addScopeQuery[m.driver].query(strings.Join(ph, ","))
+	args := make([]interface{}, 0)
+	for _, scope := range item.Scopes {
+		args = append(args, client.ID, scope.Resource, pq.Array(scope.Scopes), scope.Disabled, scope.Disabled)
+	}
+	rows, errQ := tx.Queryx(tx.Rebind(q), args...)
+	defer func() {
+		rules.WhenTrue(rows != nil, func() {
+			_ = rows.Close()
+		})
+	}()
+	if errQ != nil {
+		_ = tx.Rollback()
+		return nil, errQ
+	}
+	for rows.Next() {
+		var scope ClientScope
+		if err = rows.StructScan(&scope); err != nil {
+			_ = tx.Rollback()
+			return nil, err
+		}
+		rs.Scopes = append(rs.Scopes, &scope)
+	}
+	return rs, tx.Commit()
 }
 
 func (m *clientManager) GetClientsWithScopesBy(ctx context.Context, by db.IHelper) (ClientsWithScopes, error) {
 	qf, args := by.BuildSqlAndArgsWithWherePrefix()
 	//goland:noinspection SqlResolve
-	q := fmt.Sprintf(`
-		select 
-		    c.id, c.name, c.secret, c.expired_at, c.disabled, 
-		    c.created_at, c.updated_at, c.disabled_at,
-		    cs.id as scope_id, cs.resource, cs.scopes, cs.disabled as scope_disabled,
-		    cs.created_at as scope_created_at, cs.updated_at as scope_updated_at,
-		    cs.disabled_at as scope_disabled_at
-		from %s c 
-		join %s cs on cs.client_id = c.id
-		%s`, tableClients, tableClientScope, qf)
+	q := m.dbr.Rebind(getClientWithScopesByQuery[m.driver].query(qf))
 	rs := make(ClientsWithScopes, 0)
-	rows, err := m.dbr.Query(ctx, m.dbr.Rebind(q), args...)
+	rows, err := m.dbr.Query(ctx, q, args...)
 	defer func() {
 		rules.WhenTrue(rows != nil, func() {
 			_ = rows.Close()
@@ -192,7 +352,7 @@ func (m *clientManager) VoidScopeByIds(ctx context.Context, ids ...int) error {
 	panic("implement me")
 }
 
-func (m *clientManager) IsAllowed(secret, resource, scope string) (clientName string, allowed bool) {
+func (m *clientManager) IsAllowed(secret, resource string, scope Scope) (clientName string, allowed bool) {
 	rules.WhenTrue(m.lazyLoad, func() {
 		m.log.Info(m.loadData())
 	})
@@ -210,10 +370,10 @@ func (m *clientManager) IsAllowed(secret, resource, scope string) (clientName st
 	if len(dt.Scopes) < 1 {
 		return dt.ClientName, false
 	}
-	if dt.ExpiredAt != nil && ts.Now().Before(*dt.ExpiredAt) {
+	if dt.ExpiredAt != nil && ctime.Now().Before(*dt.ExpiredAt) {
 		return dt.ClientName, false
 	}
-	return dt.ClientName, dt.Scopes.AllowedTo(Scope(scope))
+	return dt.ClientName, dt.Scopes.AllowedTo(scope)
 }
 
 func (m *clientManager) loadData() error {
@@ -339,6 +499,10 @@ func (m *clientManager) initSchema(ctx context.Context) error {
 	if total == 2 {
 		return nil
 	}
+	// custom type
+	if !utils.KeyExistsInMap(clientCustomDefinitions, driver) {
+		return errors.New("driver not supported by custom definition")
+	}
 	if !utils.KeyExistsInMap(clientsColumnsDefinition, driver) {
 		return errors.New("driver not supported by column definition")
 	}
@@ -367,6 +531,15 @@ func (m *clientManager) initSchema(ctx context.Context) error {
 		builderClientScopes = builderClientScopes.Define(definition...)
 	}
 	tx := m.dbw.MustBegin(ctx, &sql.TxOptions{})
+	// create custom type
+
+	for _, definition := range clientCustomDefinitions[driver] {
+		_, err = tx.Exec(definition)
+		if err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+	}
 	// create clients table
 	q, _ := builderClients.BuildWithFlavor(flavor)
 	_, err = tx.Exec(q)

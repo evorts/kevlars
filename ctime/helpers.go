@@ -6,7 +6,7 @@
  * @Date: 29/08/23 23.23
  */
 
-package ts
+package ctime
 
 import (
 	"sync"
@@ -39,4 +39,13 @@ func NowWithTZ(zone TimeZone) time.Time {
 func NowWithTZPtr(zone TimeZone) *time.Time {
 	nowTZ := NowWithTZ(zone)
 	return &nowTZ
+}
+
+func NowAdd(t time.Duration) time.Time {
+	return Now().Add(t)
+}
+
+func NowPtrAdd(t time.Duration) *time.Time {
+	now := Now().Add(t)
+	return &now
 }

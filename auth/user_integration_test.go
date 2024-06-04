@@ -1,7 +1,4 @@
-/*
-go:build integration
- +build integration
-*/
+//go:build integration
 
 /**
  * @Author: steven

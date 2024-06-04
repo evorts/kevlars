@@ -8,11 +8,13 @@ values
 
 insert into client_scopes(client_id,resource,scopes)
 values
-(1,'/res/a', null),
-(2,'/res/a', '["write","read"]'::jsonb),
-(2,'/res/b', '["write"]'::jsonb),
-(2,'/res/c', '["read"]'::jsonb),
-(3,'/res/a', '["write","read"]'::jsonb)
+(1,'/res/a', array[]::client_scope[]),
+(2,'/res/a', array['write'::client_scope,'read'::client_scope]::client_scope[]),
+(2,'/res/b', array['write'::client_scope]::client_scope[]),
+(2,'/res/c', array['read'::client_scope]::client_scope[]),
+(3,'/res/a', array['write'::client_scope,'read'::client_scope]::client_scope[])
 ;
+
 -- migrate:down
+truncate client_scopes;
 truncate clients;

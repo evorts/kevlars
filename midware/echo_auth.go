@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/evorts/kevlars/auth"
 	"github.com/evorts/kevlars/contracts"
+	"github.com/evorts/kevlars/jwe"
 	"github.com/evorts/kevlars/logger"
 	"github.com/evorts/kevlars/requests"
 	"github.com/evorts/kevlars/utils"
@@ -17,6 +18,39 @@ type ApiKeySecretMap struct {
 	ClientId string `mapstructure:"client_id" json:"client_id"`
 }
 
+func EchoWithUserAuthorization(aum auth.UserManager) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			req := c.Request()
+
+			token := tokenFromHeader(req)
+			if len(token) < 1 {
+				return c.JSON(contracts.NewResponseFail(http.StatusUnauthorized, "not eligible to access this resource", contracts.ErrorDetail{}))
+			}
+			ctx := req.Context()
+
+			//introspect token
+			var claim jwe.Claim
+			if err := aum.Introspect(ctx, token, &claim); err != nil {
+				return c.JSON(contracts.NewResponseFail(http.StatusUnauthorized, "invalid token", contracts.ErrorDetail{}))
+			}
+
+			//get resource name from url
+			resourceName := c.Request().URL.Path
+			scope := auth.Scope("").FromHttpMethod(req.Method)
+
+			//get requesting party token from user token
+			//introspect token and get user id from within it
+			permitted, err := aum.IsAllowed(ctx, claim.ID, resourceName, scope)
+			if err != nil || !permitted {
+				return c.JSON(contracts.NewResponseFail(http.StatusUnauthorized, "not permitted to access this resource due to insufficient permission", contracts.ErrorDetail{}))
+			}
+
+			return next(c)
+		}
+	}
+}
+
 func EchoWithClientAuthorization(ac auth.ClientManager, log logger.Manager) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -24,7 +58,7 @@ func EchoWithClientAuthorization(ac auth.ClientManager, log logger.Manager) echo
 			resource := req.URL.Path
 			method := req.Method
 			key := apiKeyFromHeader(req)
-			scope := auth.Scope("").FromHttpMethod(req.Method).String()
+			scope := auth.Scope("").FromHttpMethod(req.Method)
 			cm, allowed := ac.IsAllowed(key, resource, scope)
 			if !allowed {
 				log.ErrorWithProps(map[string]interface{}{
@@ -88,41 +122,4 @@ func EchoWithAuthApiKeySecretsWithBlacklistClient(maps []ApiKeySecretMap, client
 
 func EchoWithAuthApiKeySecrets(maps []ApiKeySecretMap) echo.MiddlewareFunc {
 	return EchoWithAuthApiKeySecretsWithWhitelistClient(maps)
-}
-
-func EchoWithAuthToken(am auth.UserManager, realm, clientID string, clientSecret string, permissionScope string) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			req := c.Request()
-
-			token := tokenFromHeader(req)
-			if len(token) < 1 {
-				return c.JSON(contracts.NewResponseFail(http.StatusUnauthorized, "not eligible to access this resource", contracts.ErrorDetail{}))
-			}
-
-			//introspect token to keycloak -- check if token eligible to access the resource
-			ctx := req.Context()
-
-			//get resource nam from url
-			resourceName := c.Request().URL.String()
-
-			//get requesting party token from user token
-			permissions, err := am.GetPermissions(ctx, token, realm)
-			if err != nil {
-				return c.JSON(contracts.NewResponseFail(http.StatusUnauthorized, "not permitted to access this resource due to failed to retrieve requesting party token ", contracts.ErrorDetail{}))
-			}
-
-			//check request authorization
-			for _, permission := range permissions {
-				resName := permission.ResourceName
-				if resName == resourceName && permission.Scopes != nil {
-					if utils.InArray(permission.Scopes, permissionScope) {
-						return next(c)
-					}
-
-				}
-			}
-			return c.JSON(contracts.NewResponseFail(http.StatusUnauthorized, "not permitted to access this resource due to insufficient permission", contracts.ErrorDetail{}))
-		}
-	}
 }

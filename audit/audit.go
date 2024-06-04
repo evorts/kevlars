@@ -46,13 +46,15 @@ const (
 	table = "audit_log"
 )
 
+//goland:noinspection SqlResolve
 var (
 	columns = []string{"action", "created_by_id", "created_by_name", "role", "before_changed", "after_changed",
 		"additional_props", "notes", "created_at"}
 	tableExistenceCheckQuery = map[db.SupportedDriver][]string{
 		db.DriverPostgreSQL: {
-			fmt.Sprintf(`select count(table_name) as tableCount from information_schema.tables ist
-				       where ist.table_name in ('%s')`, table),
+			fmt.Sprintf(`
+			select count(table_name) as tableCount from information_schema.tables ist
+								   where ist.table_name in ('%s')`, table),
 		},
 	}
 	tableColumnDefinitions = map[db.SupportedDriver][][]string{

@@ -13,7 +13,7 @@ type Client struct {
 	ID         int        `db:"id"`
 	Name       string     `db:"name"`
 	Secret     string     `db:"secret"`
-	ExpiredAt  *time.Time `db:"expire_at"`
+	ExpiredAt  *time.Time `db:"expired_at"`
 	Disabled   bool       `db:"disabled"`
 	CreatedAt  time.Time  `db:"created_at"`
 	UpdatedAt  *time.Time `db:"updated_at"`

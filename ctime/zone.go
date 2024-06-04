@@ -6,7 +6,7 @@
  * @Date: 22/08/23 12.09
  */
 
-package ts
+package ctime
 
 type TimeZone string
 

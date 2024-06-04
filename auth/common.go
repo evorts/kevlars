@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/evorts/kevlars/utils"
+	"github.com/lib/pq"
 	"net/http"
 	"strings"
 )
@@ -72,20 +73,21 @@ func (s *Scopes) Scan(src interface{}) error {
 	}
 	var (
 		err         error
-		arrOfString []string
+		arrOfString = &pq.StringArray{}
 	)
+
 	switch src.(type) {
 	case string:
 		err = json.Unmarshal([]byte(src.(string)), &arrOfString)
 	case []byte:
-		err = json.Unmarshal(src.([]byte), &arrOfString)
+		err = arrOfString.Scan(src)
 	default:
 		err = errors.New("incompatible source type for scopes")
 	}
 	if err != nil {
 		return err
 	}
-	*s = Scopes{}.FromStringArray(arrOfString)
+	*s = Scopes{}.FromStringArray(*arrOfString)
 	return nil
 }
 

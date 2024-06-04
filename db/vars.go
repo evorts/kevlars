@@ -57,25 +57,3 @@ func (t Sort) String() string {
 func (t Sort) Valid() bool {
 	return utils.InArray([]string{SortAsc.String(), SortDesc.String(), SortNone.String()}, t.String())
 }
-
-type Error struct {
-	Code    int
-	Message string
-}
-
-func (e Error) Error() string {
-	return e.Message
-}
-
-func (e Error) ErrorCode() int {
-	return e.Code
-}
-
-func NewError(code int, message string) Error {
-	return Error{Code: code, Message: message}
-}
-
-var (
-	ErrorRecordNotFound      error = NewError(404, "record not found")
-	ErrorRecordAlreadyExists error = NewError(409, "record already exists")
-)

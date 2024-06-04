@@ -6,9 +6,10 @@
  * @Date: 22/08/23 12.09
  */
 
-package ts
+package ctime
 
 import (
+	"github.com/evorts/kevlars/common"
 	"sync"
 	"time"
 )
@@ -60,10 +61,10 @@ func (m *manager) GetLocation() *time.Location {
 	return m.loc
 }
 
-func New(opts ...Option) Manager {
+func New(opts ...common.Option[manager]) Manager {
 	m := &manager{tz: DefaultTimeZone}
 	for _, opt := range opts {
-		opt.apply(m)
+		opt.Apply(m)
 	}
 	var err error
 	locOnce.Do(func() {

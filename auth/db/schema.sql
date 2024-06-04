@@ -9,6 +9,18 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
+--
+-- Name: client_scope; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.client_scope AS ENUM (
+    'read',
+    'write',
+    'delete',
+    'undefined'
+);
+
+
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -20,8 +32,8 @@ SET default_table_access_method = heap;
 CREATE TABLE public.client_scopes (
     id integer NOT NULL,
     client_id integer,
-    resource character varying(150) NOT NULL,
-    scopes jsonb DEFAULT '[]'::jsonb,
+    resource character varying(255) NOT NULL,
+    scopes public.client_scope[] DEFAULT ARRAY[]::public.client_scope[],
     disabled boolean DEFAULT false,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone,
@@ -55,7 +67,7 @@ ALTER SEQUENCE public.client_scopes_id_seq OWNED BY public.client_scopes.id;
 
 CREATE TABLE public.clients (
     id integer NOT NULL,
-    name character varying(25) NOT NULL,
+    name character varying(45) NOT NULL,
     secret character varying(128) NOT NULL,
     expired_at timestamp with time zone,
     disabled boolean DEFAULT false,

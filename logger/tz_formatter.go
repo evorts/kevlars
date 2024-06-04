@@ -9,13 +9,13 @@
 package logger
 
 import (
-	"github.com/evorts/kevlars/ts"
+	"github.com/evorts/kevlars/ctime"
 	"github.com/sirupsen/logrus"
 	"time"
 )
 
 type TZFormatter struct {
-	tz  ts.TimeZone
+	tz  ctime.TimeZone
 	loc *time.Location
 	logrus.Formatter
 }
@@ -27,7 +27,7 @@ func (t TZFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	return t.Formatter.Format(entry)
 }
 
-func newTZFormatter(tz ts.TimeZone) (logrus.Formatter, error) {
+func newTZFormatter(tz ctime.TimeZone) (logrus.Formatter, error) {
 	f := &TZFormatter{
 		tz:        tz,
 		Formatter: &logrus.JSONFormatter{},

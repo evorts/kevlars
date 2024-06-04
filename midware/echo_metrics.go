@@ -2,8 +2,8 @@ package midware
 
 import (
 	"fmt"
+	"github.com/evorts/kevlars/ctime"
 	"github.com/evorts/kevlars/telemetry"
-	"github.com/evorts/kevlars/ts"
 	"github.com/evorts/kevlars/utils"
 	"github.com/labstack/echo/v4"
 	"strings"
@@ -73,7 +73,7 @@ func EchoMetrics(opts ...EchoMetricOption) echo.MiddlewareFunc {
 
 				// @todo: send metric to open telemetry collector
 				// here>
-			}(ts.Now())
+			}(ctime.Now())
 
 			return next(c)
 		}
