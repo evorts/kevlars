@@ -92,7 +92,7 @@ packages:
       mockname: "{{.InterfaceName}}"
       outpkg: "{{.PackageName}}"
       inpackage: False
-  github.com/evorts/kevlars/ts:
+  github.com/evorts/kevlars/ctime:
     config:
       all: False
       include-regex: ".*Manager$"

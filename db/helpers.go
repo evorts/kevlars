@@ -154,7 +154,7 @@ func PlaceholderRepeat(placeholder string, repeat int) []string {
 }
 
 func BuildPlaceholder(count int) string {
-	return strings.Join(strings.Split(strings.Repeat("?", 10), ""), ",")
+	return strings.Join(strings.Split(strings.Repeat("?", count), ""), ",")
 }
 
 func ToDriverValueFromStringArray(collection []string) []driver.Value {
