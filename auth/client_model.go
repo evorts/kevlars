@@ -7,30 +7,33 @@
 
 package auth
 
-import "time"
+import (
+	"database/sql"
+	"time"
+)
 
 type Client struct {
-	ID         int        `db:"id"`
-	Name       string     `db:"name"`
-	Secret     string     `db:"secret"`
-	ExpiredAt  *time.Time `db:"expired_at"`
-	Disabled   bool       `db:"disabled"`
-	CreatedAt  time.Time  `db:"created_at"`
-	UpdatedAt  *time.Time `db:"updated_at"`
-	DisabledAt *time.Time `db:"disabled_at"`
+	ID         int          `db:"id"`
+	Name       string       `db:"name"`
+	Secret     string       `db:"secret"`
+	ExpiredAt  sql.NullTime `db:"expired_at"`
+	Disabled   bool         `db:"disabled"`
+	CreatedAt  time.Time    `db:"created_at"`
+	UpdatedAt  sql.NullTime `db:"updated_at"`
+	DisabledAt sql.NullTime `db:"disabled_at"`
 }
 
 type Clients []*Client
 
 type ClientScope struct {
-	ID         int        `db:"id"`
-	ClientID   int        `db:"client_id"`
-	Resource   string     `db:"resource"`
-	Scopes     Scopes     `db:"scopes"`
-	Disabled   bool       `db:"disabled"`
-	CreatedAt  time.Time  `db:"created_at"`
-	UpdatedAt  *time.Time `db:"updated_at"`
-	DisabledAt *time.Time `db:"disabled_at"`
+	ID         int          `db:"id"`
+	ClientID   int          `db:"client_id"`
+	Resource   string       `db:"resource"`
+	Scopes     Scopes       `db:"scopes"`
+	Disabled   bool         `db:"disabled"`
+	CreatedAt  time.Time    `db:"created_at"`
+	UpdatedAt  sql.NullTime `db:"updated_at"`
+	DisabledAt sql.NullTime `db:"disabled_at"`
 }
 
 type ClientScopes []*ClientScope

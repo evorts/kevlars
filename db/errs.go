@@ -29,4 +29,5 @@ var (
 	ErrorRecordAlreadyExists error = NewError(4090, "record already exists")
 	ErrorEmptyArguments      error = NewError(4000, "arguments are empty")
 	ErrorDriverNotSupported  error = NewError(4001, "driver not supported yet")
+	ErrorInvalidArgument     error = NewError(4002, "arguments are invalid")
 )

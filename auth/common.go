@@ -95,7 +95,10 @@ func (s *Scopes) Scan(src interface{}) error {
 //
 //goland:noinspection GoMixedReceiverTypes
 func (s Scopes) Value() (driver.Value, error) {
-	return driver.Value(s.ToStringArray()), nil
+	if s == nil {
+		return nil, nil
+	}
+	return pq.StringArray(s.ToStringArray()).Value()
 }
 
 //goland:noinspection GoMixedReceiverTypes

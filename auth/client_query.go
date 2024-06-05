@@ -102,6 +102,39 @@ var (
 	}
 )
 
+/** Update Query **/
+var (
+	modifyClientQuery = map[db.SupportedDriver]struct {
+		query func() string
+	}{
+		db.DriverPostgreSQL: {
+			query: func() string {
+				return `UPDATE ` + tableClients + ` SET
+					name=(CASE WHEN :name <> '' THEN :name ELSE name END),
+					secret=(CASE WHEN :secret <> '' THEN :secret ELSE secret END),
+					expired_at=(CASE WHEN CAST(:expired_at AS timestamp) IS NOT NULL THEN :expired_at ELSE expired_at END),
+					updated_at=current_timestamp
+				WHERE id=:id`
+			},
+		},
+	}
+	modifyClientScopeQuery = map[db.SupportedDriver]struct {
+		query func() string
+	}{
+		db.DriverPostgreSQL: {
+			query: func() string {
+				return `UPDATE ` + tableClientScope + ` SET
+					client_id=(CASE WHEN :client_id > 0 THEN :client_id ELSE client_id END),
+					resource=(CASE WHEN :resource <> '' THEN :resource ELSE resource END),
+					scopes=(CASE WHEN array_length(CAST(:scopes AS client_scope[]), 1) > 0 THEN :scopes ELSE scopes END),
+					updated_at=current_timestamp
+				WHERE id=:id
+`
+			},
+		},
+	}
+)
+
 /** Get Query **/
 var (
 	getClientWithScopesByQuery = map[db.SupportedDriver]struct {

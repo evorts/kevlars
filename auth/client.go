@@ -30,9 +30,11 @@ import (
 
 type ClientManager interface {
 	AddClient(ctx context.Context, items Clients) (Clients, error)
-	AddScope(ctx context.Context, items ClientScopes) (ClientScopes, error)
+	AddClientScope(ctx context.Context, items ClientScopes) (ClientScopes, error)
 	AddClientWithScopes(ctx context.Context, item ClientWithScopes) (*ClientWithScopes, error)
 
+	GetClientsBy(ctx context.Context, by db.IHelper) (Clients, error)
+	GetClientScopesBy(ctx context.Context, by db.IHelper) (ClientScopes, error)
 	GetClientsWithScopesBy(ctx context.Context, by db.IHelper) (ClientsWithScopes, error)
 
 	VoidClientsByIds(ctx context.Context, ids ...int) error
@@ -152,7 +154,7 @@ func (m *clientManager) AddClient(ctx context.Context, items Clients) (Clients, 
 	return rs, nil
 }
 
-func (m *clientManager) AddScope(ctx context.Context, items ClientScopes) (ClientScopes, error) {
+func (m *clientManager) AddClientScope(ctx context.Context, items ClientScopes) (ClientScopes, error) {
 	rs := make(ClientScopes, 0)
 	if eval.IsEmpty(items) {
 		return rs, db.ErrorEmptyArguments
@@ -225,6 +227,60 @@ func (m *clientManager) AddClientWithScopes(ctx context.Context, item ClientWith
 		rs.Scopes = append(rs.Scopes, &scope)
 	}
 	return rs, tx.Commit()
+}
+
+func (m *clientManager) GetClientsBy(ctx context.Context, by db.IHelper) (Clients, error) {
+	qf, args := by.BuildSqlAndArgsWithWherePrefix()
+	//goland:noinspection SqlResolve
+	q := m.dbr.Rebind(getClientsByQuery[m.driver].query(qf))
+	rs := make(Clients, 0)
+	rows, err := m.dbr.Query(ctx, q, args...)
+	defer func() {
+		rules.WhenTrue(rows != nil, func() {
+			_ = rows.Close()
+		})
+	}()
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return rs, db.ErrorRecordNotFound
+		}
+		return rs, err
+	}
+	for rows.Next() {
+		var item Client
+		if err = rows.StructScan(&item); err != nil {
+			return rs, err
+		}
+		rs = append(rs, &item)
+	}
+	return rs, nil
+}
+
+func (m *clientManager) GetClientScopesBy(ctx context.Context, by db.IHelper) (ClientScopes, error) {
+	qf, args := by.BuildSqlAndArgsWithWherePrefix()
+	//goland:noinspection SqlResolve
+	q := m.dbr.Rebind(getClientScopesByQuery[m.driver].query(qf))
+	rs := make(ClientScopes, 0)
+	rows, err := m.dbr.Query(ctx, q, args...)
+	defer func() {
+		rules.WhenTrue(rows != nil, func() {
+			_ = rows.Close()
+		})
+	}()
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return rs, db.ErrorRecordNotFound
+		}
+		return rs, err
+	}
+	for rows.Next() {
+		var item ClientScope
+		if err = rows.StructScan(&item); err != nil {
+			return rs, err
+		}
+		rs = append(rs, &item)
+	}
+	return rs, nil
 }
 
 func (m *clientManager) GetClientsWithScopesBy(ctx context.Context, by db.IHelper) (ClientsWithScopes, error) {
@@ -314,13 +370,23 @@ func (m *clientManager) RemoveScopeByIds(ctx context.Context, ids ...int) error 
 }
 
 func (m *clientManager) ModifyClient(ctx context.Context, item Client) error {
-	//TODO implement me
-	panic("implement me")
+	if item.ID < 1 {
+		return db.ErrorInvalidArgument
+	}
+	q := modifyClientQuery[m.driver].query()
+	_, err := m.dbw.NamedExec(
+		ctx, q, item,
+	)
+	return err
 }
 
 func (m *clientManager) ModifyClientScope(ctx context.Context, item ClientScope) error {
-	//TODO implement me
-	panic("implement me")
+	if item.ID < 1 {
+		return db.ErrorInvalidArgument
+	}
+	q := modifyClientScopeQuery[m.driver].query()
+	_, err := m.dbw.NamedExec(ctx, q, item)
+	return err
 }
 
 func (m *clientManager) IsAllowed(secret, resource string, scope Scope) (clientName string, allowed bool) {
@@ -377,7 +443,7 @@ func (m *clientManager) loadData() error {
 					ClientName: item.Name,
 					Scopes:     scope.Scopes,
 					Disabled:   rules.Iif(item.Disabled, item.Disabled, scope.Disabled),
-					ExpiredAt:  item.ExpiredAt,
+					ExpiredAt:  &item.ExpiredAt.Time,
 				}
 			}
 		}

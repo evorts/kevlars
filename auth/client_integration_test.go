@@ -14,6 +14,7 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"github.com/evorts/kevlars/common"
 	"github.com/evorts/kevlars/ctime"
 	"github.com/evorts/kevlars/db"
@@ -145,7 +146,7 @@ func (ts *clientAuthTestSuite) TestAddClient() {
 				{
 					Name:      "Add Client 1",
 					Secret:    "Add Client Secret 1",
-					ExpiredAt: ctime.NowPtrAdd(10 * time.Hour),
+					ExpiredAt: sql.NullTime{Time: ctime.NowAdd(10 * time.Hour), Valid: true},
 					Disabled:  false,
 				},
 			}},
@@ -158,25 +159,25 @@ func (ts *clientAuthTestSuite) TestAddClient() {
 				{
 					Name:      "Add Client 2",
 					Secret:    "Add Client Secret 2",
-					ExpiredAt: ctime.NowPtrAdd(12 * time.Hour),
+					ExpiredAt: sql.NullTime{Time: ctime.NowAdd(12 * time.Hour), Valid: true},
 					Disabled:  true,
 				},
 				{
 					Name:      "Add Client 3",
 					Secret:    "Add Client Secret 3",
-					ExpiredAt: ctime.NowPtrAdd(11 * time.Hour),
+					ExpiredAt: sql.NullTime{Time: ctime.NowAdd(11 * time.Hour), Valid: true},
 					Disabled:  false,
 				},
 				{
 					Name:      "Add Client 4",
 					Secret:    "Add Client Secret 4",
-					ExpiredAt: ctime.NowPtrAdd(11 * time.Hour),
+					ExpiredAt: sql.NullTime{Time: ctime.NowAdd(11 * time.Hour), Valid: true},
 					Disabled:  false,
 				},
 				{
 					Name:      "Add Client 5",
 					Secret:    "Add Client Secret 5",
-					ExpiredAt: ctime.NowPtrAdd(11 * time.Hour),
+					ExpiredAt: sql.NullTime{Time: ctime.NowAdd(11 * time.Hour), Valid: true},
 					Disabled:  true,
 				},
 			}},
@@ -230,7 +231,7 @@ func (ts *clientAuthTestSuite) TestAddScopes() {
 				rs, _ := ts.cm.AddClient(ctx, Clients{{
 					Name:      "Add Client for Scope 1",
 					Secret:    "Add Client Secret for Scope 1",
-					ExpiredAt: ctime.NowPtrAdd(10 * time.Hour),
+					ExpiredAt: sql.NullTime{Time: ctime.NowAdd(10 * time.Hour), Valid: true},
 					Disabled:  false,
 				}})
 				for _, v := range scopes {
@@ -258,7 +259,7 @@ func (ts *clientAuthTestSuite) TestAddScopes() {
 				rs, _ := ts.cm.AddClient(ctx, Clients{{
 					Name:      "Add Client for Scope 2",
 					Secret:    "Add Client Secret for Scope 2",
-					ExpiredAt: ctime.NowPtrAdd(10 * time.Hour),
+					ExpiredAt: sql.NullTime{Time: ctime.NowAdd(10 * time.Hour), Valid: true},
 					Disabled:  false,
 				}})
 				for _, scope := range scopes {
@@ -271,7 +272,7 @@ func (ts *clientAuthTestSuite) TestAddScopes() {
 	for _, tc := range tests {
 		ts.Run(tc.name, func() {
 			tc.dependsOn(ts.ctx, tc.args.items)
-			rc, err := ts.cm.AddScope(ts.ctx, tc.args.items)
+			rc, err := ts.cm.AddClientScope(ts.ctx, tc.args.items)
 			if tc.shouldProduceError {
 				assert.Error(ts.T(), err)
 			} else {
@@ -298,7 +299,7 @@ func (ts *clientAuthTestSuite) TestAddClientWithScopes() {
 					Client: &Client{
 						Name:      "Add Client With Scope: Client 1",
 						Secret:    "Add Client With Scope: Secret 1",
-						ExpiredAt: ctime.NowPtrAdd(15 * time.Hour),
+						ExpiredAt: sql.NullTime{Time: ctime.NowAdd(15 * time.Hour), Valid: true},
 						Disabled:  false,
 					},
 					Scopes: nil,
@@ -311,7 +312,7 @@ func (ts *clientAuthTestSuite) TestAddClientWithScopes() {
 				Client: &Client{
 					Name:      "Add Client With Scope: Client 2",
 					Secret:    "Add Client With Scope: Secret 2",
-					ExpiredAt: ctime.NowPtrAdd(14 * time.Hour),
+					ExpiredAt: sql.NullTime{Time: ctime.NowAdd(14 * time.Hour), Valid: true},
 					Disabled:  true,
 				},
 				Scopes: ClientScopes{
@@ -330,7 +331,7 @@ func (ts *clientAuthTestSuite) TestAddClientWithScopes() {
 				Client: &Client{
 					Name:      "Add Client With Scope: Client 3",
 					Secret:    "Add Client With Scope: Secret 3",
-					ExpiredAt: ctime.NowPtrAdd(17 * time.Hour),
+					ExpiredAt: sql.NullTime{Time: ctime.NowAdd(17 * time.Hour), Valid: true},
 					Disabled:  false,
 				},
 				Scopes: ClientScopes{
@@ -353,6 +354,172 @@ func (ts *clientAuthTestSuite) TestAddClientWithScopes() {
 		ts.Run(tc.name, func() {
 			_, err := ts.cm.AddClientWithScopes(ts.ctx, tc.args.items)
 			assert.NoError(ts.T(), err)
+		})
+	}
+}
+
+func (ts *clientAuthTestSuite) TestModifyClient() {
+	type args struct {
+		item *Client
+	}
+	tests := []struct {
+		name               string
+		args               args
+		dependOn           func(item *Client)
+		shouldProduceError bool
+	}{
+		{
+			name: "given invalid item (missing id) should produce an error",
+			args: args{
+				item: &Client{
+					Name:      "Modify Client: Client 1",
+					Secret:    "Modify Client: Secret 1",
+					ExpiredAt: sql.NullTime{Time: ctime.NowAdd(15 * time.Hour), Valid: true},
+				},
+			},
+			shouldProduceError: true,
+			dependOn:           func(item *Client) {},
+		},
+		{
+			name: "given valid item should modified successfully",
+			args: args{
+				item: &Client{
+					ID:        1,
+					Name:      "Modify Client: Client 1",
+					Secret:    "Modify Client: Secret 1",
+					ExpiredAt: sql.NullTime{Time: ctime.NowAdd(15 * time.Hour), Valid: true},
+				},
+			},
+			shouldProduceError: false,
+			dependOn: func(item *Client) {
+				rs, _ := ts.cm.AddClient(ts.ctx, Clients{{
+					ID:        1,
+					Name:      "New Client 1",
+					Secret:    "New Secret 1",
+					ExpiredAt: sql.NullTime{},
+				}})
+				item.ID = rs[0].ID
+			},
+		},
+		{
+			name: "given valid item without expired date should modified successfully",
+			args: args{
+				item: &Client{
+					ID:        2,
+					Name:      "Modify Client: Client 2",
+					Secret:    "Modify Client: Secret 2",
+					ExpiredAt: sql.NullTime{},
+				},
+			},
+			shouldProduceError: false,
+			dependOn: func(item *Client) {
+				rs, _ := ts.cm.AddClient(ts.ctx, Clients{{
+					ID:        2,
+					Name:      "New Client 2",
+					Secret:    "New Secret 2",
+					ExpiredAt: sql.NullTime{},
+				}})
+				item.ID = rs[0].ID
+			},
+		},
+	}
+	for _, tc := range tests {
+		ts.Run(tc.name, func() {
+			tc.dependOn(tc.args.item)
+			err := ts.cm.ModifyClient(ts.ctx, *tc.args.item)
+			if tc.shouldProduceError {
+				assert.Error(ts.T(), err)
+			} else {
+				assert.NoError(ts.T(), err)
+			}
+		})
+	}
+}
+
+func (ts *clientAuthTestSuite) TestModifyClientScope() {
+	type args struct {
+		item *ClientScope
+	}
+	tests := []struct {
+		name               string
+		args               args
+		dependOn           func(item *ClientScope)
+		shouldProduceError bool
+	}{
+		{
+			name: "given invalid item (missing id) should produce an error",
+			args: args{
+				item: &ClientScope{
+					ClientID: 1,
+					Resource: "resource 1",
+					Scopes:   nil,
+				},
+			},
+			shouldProduceError: true,
+			dependOn:           func(item *ClientScope) {},
+		},
+		{
+			name: "given valid item should modified successfully",
+			args: args{
+				item: &ClientScope{
+					ClientID: 1,
+					Resource: "resource 1",
+					Scopes:   nil,
+				},
+			},
+			shouldProduceError: false,
+			dependOn: func(item *ClientScope) {
+				rs, _ := ts.cm.AddClient(ts.ctx, Clients{{
+					ID:        1,
+					Name:      "New Client 1",
+					Secret:    "New Secret 1",
+					ExpiredAt: sql.NullTime{},
+				}})
+				item.ClientID = rs[0].ID
+				rss, _ := ts.cm.AddClientScope(ts.ctx, ClientScopes{{
+					ClientID: rs[0].ID,
+					Resource: "/path/to/resource",
+					Scopes:   Scopes{ScopeRead, ScopeWrite},
+				}})
+				item.ID = rss[0].ID
+			},
+		},
+		{
+			name: "given valid item with scopes should modified successfully",
+			args: args{
+				item: &ClientScope{
+					ClientID: 1,
+					Resource: "resource 1",
+					Scopes:   Scopes{ScopeWrite},
+				},
+			},
+			shouldProduceError: false,
+			dependOn: func(item *ClientScope) {
+				rs, _ := ts.cm.AddClient(ts.ctx, Clients{{
+					ID:        2,
+					Name:      "New Client 2",
+					Secret:    "New Secret 2",
+					ExpiredAt: sql.NullTime{},
+				}})
+				item.ClientID = rs[0].ID
+				rss, _ := ts.cm.AddClientScope(ts.ctx, ClientScopes{{
+					ClientID: rs[0].ID,
+					Resource: "/path/to/resource",
+					Scopes:   Scopes{ScopeRead, ScopeWrite},
+				}})
+				item.ID = rss[0].ID
+			},
+		},
+	}
+	for _, tc := range tests {
+		ts.Run(tc.name, func() {
+			tc.dependOn(tc.args.item)
+			err := ts.cm.ModifyClientScope(ts.ctx, *tc.args.item)
+			if tc.shouldProduceError {
+				assert.Error(ts.T(), err)
+			} else {
+				assert.NoError(ts.T(), err)
+			}
 		})
 	}
 }
