@@ -9,6 +9,7 @@
 package utils
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"strconv"
 	"unsafe"
@@ -82,4 +83,8 @@ func ParseUint(b []byte, base int, bitSize int) (uint64, error) {
 
 func ParseFloat(b []byte, bitSize int) (float64, error) {
 	return strconv.ParseFloat(BytesToString(b), bitSize)
+}
+
+func ToBase64EncodedString[T byte | string](v T) string {
+	return base64.StdEncoding.EncodeToString(StringToBytes(string(v)))
 }

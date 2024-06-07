@@ -34,8 +34,8 @@ type Record struct {
 
 type Manager interface {
 	Add(ctx context.Context, records ...Record) error
-	Init() error
-	MustInit() Manager
+
+	common.Init[Manager]
 }
 
 type manager struct {

@@ -8,6 +8,7 @@
 package config
 
 import (
+	"github.com/evorts/kevlars/common"
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 	"os"
@@ -39,8 +40,8 @@ type Manager interface {
 	UnmarshalTo(key string, to interface{}) error
 	IsSet(key string) bool
 	AllSettings() map[string]interface{}
-	Init() error
-	MustInit() Manager
+
+	common.Init[Manager]
 }
 
 type Provider interface {
