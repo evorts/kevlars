@@ -18,6 +18,7 @@ import (
 	"github.com/evorts/kevlars/common"
 	"github.com/evorts/kevlars/ctime"
 	"github.com/evorts/kevlars/db"
+	"github.com/evorts/kevlars/inmemory"
 	"github.com/evorts/kevlars/logger"
 	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/rules/eval"
@@ -50,6 +51,7 @@ type ClientManager interface {
 	Init() error
 	MustInit() ClientManager
 	AddOptions(opts ...common.Option[clientManager]) ClientManager
+	Reload() error
 
 	migrate()
 	loadData() error
@@ -62,10 +64,11 @@ type clientManager struct {
 	dbm              *dbmate.DB
 	driver           db.SupportedDriver
 	log              logger.Manager
+	mem              inmemory.Manager
 	migrationDir     []string
 	migrationEnabled bool
-	lazyLoad         bool
 	mapAuthorization mapClientAuthorization
+	startContext     context.Context
 }
 
 const (
@@ -390,15 +393,8 @@ func (m *clientManager) ModifyClientScope(ctx context.Context, item ClientScope)
 }
 
 func (m *clientManager) IsAllowed(secret, resource string, scope Scope) (clientName string, allowed bool) {
-	rules.WhenTrue(m.lazyLoad, func() {
-		m.log.Info(m.loadData())
-	})
-	rm, ok := m.mapAuthorization[secret]
-	if !ok {
-		return "unknown", false
-	}
-	dt, okd := rm[resource]
-	if !okd {
+	dt := m.getMapAuthorization(secret, resource)
+	if dt == nil {
 		return "unknown", false
 	}
 	if dt.Disabled {
@@ -413,17 +409,39 @@ func (m *clientManager) IsAllowed(secret, resource string, scope Scope) (clientN
 	return dt.ClientName, dt.Scopes.AllowedTo(scope)
 }
 
-func (m *clientManager) loadData() error {
-	if len(m.mapAuthorization) > 0 {
+func (m *clientManager) Reload() error {
+	return m.loadData()
+}
+
+func (m *clientManager) getMapAuthorization(secret, resource string) *clientDataForAuthorization {
+	var rs clientDataForAuthorization
+	err := m.mem.HGet(m.startContext, secret, resource, &rs)
+	if err == nil {
+		return &rs
+	}
+	m.log.InfoWithProps(map[string]interface{}{
+		"context":  "client.get_map_authorization",
+		"resource": resource,
+	}, err.Error())
+	rm, ok := m.mapAuthorization[secret]
+	if !ok {
 		return nil
 	}
+	dt, okd := rm[resource]
+	if !okd {
+		return nil
+	}
+	return &dt
+}
+
+func (m *clientManager) loadData() error {
 	var (
 		page  = 1
 		limit = 20
 	)
 	for {
 		items, err := m.GetClientsWithScopesBy(
-			context.Background(),
+			m.startContext,
 			db.NewHelper(
 				db.SeparatorAND,
 				db.WithPagination(page, limit),
@@ -435,6 +453,7 @@ func (m *clientManager) loadData() error {
 		// map items into map client authorization
 		for _, item := range items {
 			m.mapAuthorization[item.Secret] = make(map[string]clientDataForAuthorization)
+			inMemoryFieldValues := make([]interface{}, 0)
 			for _, scope := range item.Scopes {
 				if scope == nil {
 					continue
@@ -445,6 +464,10 @@ func (m *clientManager) loadData() error {
 					Disabled:   rules.Iif(item.Disabled, item.Disabled, scope.Disabled),
 					ExpiredAt:  &item.ExpiredAt.Time,
 				}
+				inMemoryFieldValues = append(inMemoryFieldValues, scope.Resource, m.mapAuthorization[item.Secret][scope.Resource])
+			}
+			if err = m.mem.HSet(m.startContext, item.Secret, inMemoryFieldValues...); err != nil {
+				return err
 			}
 		}
 		if len(items) < limit {
@@ -511,15 +534,12 @@ func (m *clientManager) tableCheck(ctx context.Context, driver db.SupportedDrive
 }
 
 func (m *clientManager) Init() error {
-	ctx := context.Background()
-	if err := m.initSchema(ctx); err != nil {
+	if err := m.initSchema(m.startContext); err != nil {
 		return err
 	}
 	m.migrate()
-	if !m.lazyLoad {
-		if err := m.loadData(); err != nil {
-			return err
-		}
+	if err := m.loadData(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -634,9 +654,11 @@ func NewClientManager(dbm db.Manager, opts ...common.Option[clientManager]) Clie
 			return dbm.Driver()
 		}),
 		log:              logger.NewNoop(),
+		mem:              inmemory.NewNoop(),
 		mapAuthorization: make(mapClientAuthorization),
 		migrationEnabled: false,
 		migrationDir:     []string{},
+		startContext:     context.Background(),
 	}
 	m.AddOptions(opts...)
 	return m

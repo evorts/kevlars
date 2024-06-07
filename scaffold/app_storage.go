@@ -12,6 +12,7 @@ import (
 	"github.com/evorts/kevlars/inmemory"
 	"github.com/evorts/kevlars/rules"
 	"github.com/evorts/kevlars/telemetry"
+	"github.com/evorts/kevlars/utils"
 )
 
 type IStorage interface {
@@ -25,7 +26,9 @@ type IStorage interface {
 
 	WithInMemories() IApplication
 	InMemory(key string) inmemory.Manager
-	HasInMemory() bool
+	HasInMemories() bool
+	HasInMemory(key string) bool
+	HasDefaultInMemory() bool
 	DefaultInMemory() inmemory.Manager
 }
 
@@ -204,8 +207,16 @@ func (app *Application) InMemory(key string) inmemory.Manager {
 	panic("cache manager with key " + key + " not found")
 }
 
-func (app *Application) HasInMemory() bool {
-	return len(app.inMemories) > 0
+func (app *Application) HasInMemories() bool {
+	return app.inMemories != nil && len(app.inMemories) > 0
+}
+
+func (app *Application) HasInMemory(key string) bool {
+	return app.HasInMemories() && utils.KeyExistsInMap(app.inMemories, key)
+}
+
+func (app *Application) HasDefaultInMemory() bool {
+	return app.HasInMemories() && utils.KeyExistsInMap(app.inMemories, DefaultKey)
 }
 
 func (app *Application) DefaultInMemory() inmemory.Manager {

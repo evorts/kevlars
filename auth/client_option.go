@@ -10,6 +10,7 @@ package auth
 import (
 	"github.com/evorts/kevlars/common"
 	"github.com/evorts/kevlars/db"
+	"github.com/evorts/kevlars/inmemory"
 	"github.com/evorts/kevlars/logger"
 )
 
@@ -19,15 +20,15 @@ func ClientWithLogger(v logger.Manager) common.Option[clientManager] {
 	})
 }
 
-func ClientWithDatabaseRead(db db.Manager) common.Option[clientManager] {
+func ClientWithInMemory(v inmemory.Manager) common.Option[clientManager] {
 	return common.OptionFunc[clientManager](func(c *clientManager) {
-		c.dbr = db
+		c.mem = v
 	})
 }
 
-func ClientWithLazyLoadData(v bool) common.Option[clientManager] {
+func ClientWithDatabaseRead(db db.Manager) common.Option[clientManager] {
 	return common.OptionFunc[clientManager](func(c *clientManager) {
-		c.lazyLoad = v
+		c.dbr = db
 	})
 }
 

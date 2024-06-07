@@ -18,6 +18,33 @@ type ApiKeySecretMap struct {
 	ClientId string `mapstructure:"client_id" json:"client_id"`
 }
 
+func EchoWithClientAuthorization(ac auth.ClientManager, log logger.Manager) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			req := c.Request()
+			resource := req.URL.Path
+			method := req.Method
+			key := apiKeyFromHeader(req)
+			scope := auth.Scope("").FromHttpMethod(req.Method)
+			cm, allowed := ac.IsAllowed(key, resource, scope)
+			if !allowed {
+				log.ErrorWithProps(map[string]interface{}{
+					"cid":    cm,
+					"method": method,
+					"path":   resource,
+				}, "request not allowed")
+				return c.JSON(contracts.NewResponseFail(http.StatusUnauthorized, "Not authorized to access this resource", contracts.ErrorDetail{
+					Code: "ERR:NOK:AUTH",
+					Errors: map[string]string{
+						"err": "key not acceptable",
+					},
+				}))
+			}
+			return next(c)
+		}
+	}
+}
+
 func EchoWithUserAuthorization(aum auth.UserManager) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -46,33 +73,6 @@ func EchoWithUserAuthorization(aum auth.UserManager) echo.MiddlewareFunc {
 				return c.JSON(contracts.NewResponseFail(http.StatusUnauthorized, "not permitted to access this resource due to insufficient permission", contracts.ErrorDetail{}))
 			}
 
-			return next(c)
-		}
-	}
-}
-
-func EchoWithClientAuthorization(ac auth.ClientManager, log logger.Manager) echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			req := c.Request()
-			resource := req.URL.Path
-			method := req.Method
-			key := apiKeyFromHeader(req)
-			scope := auth.Scope("").FromHttpMethod(req.Method)
-			cm, allowed := ac.IsAllowed(key, resource, scope)
-			if !allowed {
-				log.ErrorWithProps(map[string]interface{}{
-					"cid":    cm,
-					"method": method,
-					"path":   resource,
-				}, "request not allowed")
-				return c.JSON(contracts.NewResponseFail(http.StatusUnauthorized, "Not authorized to access this resource", contracts.ErrorDetail{
-					Code: "ERR:NOK:AUTH",
-					Errors: map[string]string{
-						"err": "key not acceptable",
-					},
-				}))
-			}
 			return next(c)
 		}
 	}

@@ -25,6 +25,8 @@ feature_flag:
 auth:
   client:
     lazy_load_data: false
+    use_in_memory: true
+    in_memory_instance: "default"
     migrations:
       enabled: true
       dir: []

@@ -33,8 +33,13 @@ func (app *Application) WithClientAuthorization() IApplication {
 			),
 		)
 	}
-	if v := app.Config().GetBool("auth.client.lazy_load_data"); v {
-		app.authClient.AddOptions(auth.ClientWithLazyLoadData(v))
+	if v := app.Config().GetBool("auth.client.use_in_memory"); v && app.HasInMemories() {
+		// when use in memory are true, use default when the defined key not found
+		if im := app.Config().GetString("auth.client.in_memory_instance"); len(im) > 0 && app.HasInMemory(im) {
+			app.authClient.AddOptions(auth.ClientWithInMemory(app.InMemory(im)))
+		} else {
+			app.authClient.AddOptions(auth.ClientWithInMemory(app.DefaultInMemory()))
+		}
 	}
 	app.authClient.MustInit()
 	return app

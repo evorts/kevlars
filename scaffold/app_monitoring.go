@@ -148,7 +148,7 @@ func (app *Application) healthDependenciesEchoHandler(c echo.Context) error {
 			})
 		}
 	})
-	rules.WhenTrue(app.HasInMemory(), func() {
+	rules.WhenTrue(app.HasInMemories(), func() {
 		for ck, cm := range app.inMemories {
 			result[InMemoryKey.String()] = append(result[InMemoryKey.String()], deps{
 				name:   ck,
