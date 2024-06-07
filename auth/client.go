@@ -48,14 +48,14 @@ type ClientManager interface {
 
 	IsAllowed(secret, resource string, scope Scope) (clientName string, allowed bool)
 
-	Init() error
-	MustInit() ClientManager
 	AddOptions(opts ...common.Option[clientManager]) ClientManager
 	Reload() error
 
 	migrate()
 	loadData() error
 	dbMigrate() *dbmate.DB
+
+	common.Init[ClientManager]
 }
 
 type clientManager struct {

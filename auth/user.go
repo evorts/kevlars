@@ -42,8 +42,7 @@ type UserManager interface {
 	Introspect(ctx context.Context, token string, bindTo interface{}) error
 	Authenticate(ctx context.Context, id int64, creds string) (token string, err error)
 
-	Init() error
-	MustInit() UserManager
+	common.Init[UserManager]
 }
 
 type userManager struct {

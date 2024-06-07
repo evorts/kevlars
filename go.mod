@@ -9,6 +9,7 @@ require (
 	github.com/DataDog/datadog-go/v5 v5.5.0
 	github.com/alicebob/miniredis/v2 v2.32.1
 	github.com/amacneil/dbmate/v2 v2.16.0
+	github.com/avast/retry-go/v4 v4.6.0
 	github.com/denisenkom/go-mssqldb v0.12.3
 	github.com/go-co-op/gocron v1.37.0
 	github.com/go-jose/go-jose/v4 v4.0.2
@@ -26,6 +27,7 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.26
 	github.com/microsoft/go-mssqldb v1.7.2
 	github.com/mitchellh/mapstructure v1.5.0
+	github.com/mocktools/go-smtp-mock/v2 v2.3.0
 	github.com/mojocn/base64Captcha v1.3.6
 	github.com/redis/go-redis/v9 v9.5.1
 	github.com/shirou/gopsutil/v3 v3.24.4
@@ -35,6 +37,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/testcontainers/testcontainers-go v0.31.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.31.0
+	github.com/testcontainers/testcontainers-go/modules/redis v0.31.0
 	github.com/uptrace/opentelemetry-go-extra/otelsql v0.3.0
 	github.com/uptrace/opentelemetry-go-extra/otelsqlx v0.3.0
 	github.com/valkey-io/valkey-go v1.0.37

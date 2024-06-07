@@ -18,13 +18,16 @@ import (
 	"github.com/evorts/kevlars/common"
 	"github.com/evorts/kevlars/ctime"
 	"github.com/evorts/kevlars/db"
+	"github.com/evorts/kevlars/inmemory"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"io/fs"
 	"log"
+	"strings"
 	"testing"
 	"time"
 )
@@ -32,31 +35,42 @@ import (
 type clientAuthTestSuite struct {
 	suite.Suite
 
-	ctx       context.Context
-	db        db.Manager
-	dbname    string
-	port      int
-	user      string
-	pass      string
-	dsn       string
-	container *postgres.PostgresContainer
-	cm        ClientManager
+	ctx               context.Context
+	db                db.Manager
+	im                inmemory.Manager
+	dbname            string
+	dbPort            int
+	dbUser            string
+	dbPass            string
+	dbDsn             string
+	postgresContainer *postgres.PostgresContainer
+
+	redisAddress   string
+	redisContainer *redis.RedisContainer
+	cm             ClientManager
 }
 
 func (ts *clientAuthTestSuite) SetupTest() {
 	var err error
 	ts.dbname = "test_db"
-	ts.user = "user"
-	ts.pass = "secrets"
-	ts.port = 55432
+	ts.dbUser = "user"
+	ts.dbPass = "secrets"
+	ts.dbPort = 55432
 	ts.ctx = context.Background()
-	ts.container, err = postgres.RunContainer(
+	ts.redisContainer, err = redis.RunContainer(ts.ctx,
+		testcontainers.WithImage("docker.io/redis:7.2-alpine"),
+		redis.WithSnapshotting(10, 1),
+		redis.WithLogLevel(redis.LogLevelVerbose),
+		//redis.WithConfigFile(filepath.Join("testdata", "redis7.conf")),
+	)
+	ts.Require().NoError(err)
+	ts.postgresContainer, err = postgres.RunContainer(
 		ts.ctx,
 		testcontainers.WithImage("docker.io/postgres:16-alpine"),
-		testcontainers.WithHostPortAccess(ts.port),
+		testcontainers.WithHostPortAccess(ts.dbPort),
 		postgres.WithDatabase(ts.dbname),
-		postgres.WithUsername(ts.user),
-		postgres.WithPassword(ts.pass),
+		postgres.WithUsername(ts.dbUser),
+		postgres.WithPassword(ts.dbPass),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
 				WithOccurrence(2).
@@ -64,10 +78,19 @@ func (ts *clientAuthTestSuite) SetupTest() {
 		),
 	)
 	ts.Require().NoError(err)
-	ts.dsn, err = ts.container.ConnectionString(ts.ctx, "sslmode=disable")
+	ts.dbDsn, err = ts.postgresContainer.ConnectionString(ts.ctx, "sslmode=disable")
 	ts.Require().NoError(err)
-	ts.db = db.New(db.DriverPostgreSQL, ts.dsn).MustConnect(ts.ctx)
-	ts.cm = NewClientManager(ts.db).MustInit()
+	ts.db = db.New(db.DriverPostgreSQL, ts.dbDsn)
+	err = ts.db.Connect(ts.ctx)
+	ts.Require().NoError(err)
+	ts.redisAddress, _ = ts.redisContainer.ConnectionString(ts.ctx)
+	ts.redisAddress = strings.TrimLeft(ts.redisAddress, "redis://")
+	ts.im = inmemory.NewRedis(ts.redisAddress)
+	err = ts.im.Connect(ts.ctx)
+	ts.Require().NoError(err)
+	ts.cm = NewClientManager(ts.db, ClientWithInMemory(ts.im))
+	err = ts.cm.Init()
+	ts.Require().NoError(err)
 }
 
 func (ts *clientAuthTestSuite) TestInstantiation() {
@@ -525,7 +548,10 @@ func (ts *clientAuthTestSuite) TestModifyClientScope() {
 }
 
 func (ts *clientAuthTestSuite) TearDownTest() {
-	if err := ts.container.Terminate(ts.ctx); err != nil {
+	if err := ts.postgresContainer.Terminate(ts.ctx); err != nil {
+		log.Fatalf("failed to terminate container: %s", err)
+	}
+	if err := ts.redisContainer.Terminate(ts.ctx); err != nil {
 		log.Fatalf("failed to terminate container: %s", err)
 	}
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/evorts/kevlars/common"
 )
 
-type Sender interface {
+type Manager interface {
 	SendMessage(message string) error
-	common.Init[Sender]
+	common.Init[Manager]
 }

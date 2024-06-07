@@ -37,7 +37,7 @@ func (t *telegramBot) Init() error {
 	return nil
 }
 
-func (t *telegramBot) MustInit() Sender {
+func (t *telegramBot) MustInit() Manager {
 	if err := t.Init(); err != nil {
 		panic(err)
 	}
@@ -81,7 +81,7 @@ func (t *telegramBot) SendMessage(message string) error {
 	return errResp
 }
 
-func NewTelegramSender(opts ...common.Option[telegramBot]) Sender {
+func NewTelegram(opts ...common.Option[telegramBot]) Manager {
 	bot := &telegramBot{
 		log:       logger.NewNoop(),
 		client:    &http.Client{},
