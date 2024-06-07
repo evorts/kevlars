@@ -13,6 +13,7 @@ import (
 	"github.com/evorts/kevlars/audit"
 	"github.com/evorts/kevlars/auth"
 	"github.com/evorts/kevlars/config"
+	"github.com/evorts/kevlars/crypt"
 	"github.com/evorts/kevlars/db"
 	"github.com/evorts/kevlars/fflag"
 	"github.com/evorts/kevlars/health"
@@ -85,6 +86,10 @@ type Application struct {
 	// authentication
 	authClient auth.ClientManager
 
+	// security
+	cryptMap map[string]crypt.Manager
+	hasher   crypt.Hasher
+
 	routes           []route // routes for rest endpoint
 	midwareTelemetry interface{}
 
@@ -131,10 +136,11 @@ func (app *Application) MaskedHeaders() []string {
 func NewApp(opts ...Option) IApplication {
 	app := &Application{
 		inMemories:  make(map[string]inmemory.Manager),
-		dbs:         map[string]db.Manager{},
+		dbs:         make(map[string]db.Manager),
 		restClients: make(map[string]rest.Manager),
 		grpcClients: make(map[string]rpc.ClientManager),
 		soapClients: make(map[string]soap.Manager),
+		cryptMap:    make(map[string]crypt.Manager),
 		metrics:     telemetry.NewMetricNoop(),
 		tm:          telemetry.NewNoop(),
 	}

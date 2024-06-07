@@ -31,6 +31,10 @@ auth:
       enabled: true
       dir: []
 
+#### Cryptographic ####
+crypt:
+
+
 #### Open Telemetry Section ####
 telemetry:
   name: "sample_telemetry_name"

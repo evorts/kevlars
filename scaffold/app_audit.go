@@ -7,7 +7,9 @@
 
 package scaffold
 
-import "github.com/evorts/kevlars/audit"
+import (
+	"github.com/evorts/kevlars/audit"
+)
 
 type IAudit interface {
 	WithAuditLog() IApplication

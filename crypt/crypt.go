@@ -19,9 +19,9 @@ import (
 type Manager interface {
 	Encrypter
 	Decrypter
-	Hasher
 
 	common.Init[Manager]
+	AddOptions(opts ...common.Option[manager]) Manager
 }
 
 type crypter interface {
@@ -31,7 +31,6 @@ type crypter interface {
 
 type manager struct {
 	crypter crypter
-	hasher  Hasher
 	hash    hash.Hash
 	cipher  Cipher
 	key     common.Bytes
@@ -84,18 +83,20 @@ func (m *manager) Encrypt(value common.Bytes) (common.Bytes, error) {
 	return m.crypter.Encrypt(value)
 }
 
-func (m *manager) SHA3(use SHA3, value common.Bytes) (common.Bytes, error) {
-	return m.hasher.SHA3(use, value)
-}
-
 func (m *manager) Decrypt(value common.Bytes) (common.Bytes, error) {
 	return m.crypter.Decrypt(value)
 }
 
+func (m *manager) AddOptions(opts ...common.Option[manager]) Manager {
+	for _, opt := range opts {
+		opt.Apply(m)
+	}
+	return m
+}
+
 func New(opts ...common.Option[manager]) Manager {
 	m := &manager{
-		hasher: NewHasher(),
-		hash:   sha512.New(),
+		hash: sha512.New(),
 	}
 	for _, opt := range opts {
 		opt.Apply(m)

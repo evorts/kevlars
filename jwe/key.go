@@ -9,9 +9,7 @@ package jwe
 
 import (
 	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
-	"errors"
+	"github.com/evorts/kevlars/crypt"
 )
 
 type (
@@ -25,17 +23,5 @@ func (k PrivateKey) String() string {
 	return string(k)
 }
 func (k PrivateKey) GetKey() (*rsa.PrivateKey, error) {
-	return generateRsaPrivateKeyFromPemString(k.String())
-}
-
-func generateRsaPrivateKeyFromPemString(privatePem string) (*rsa.PrivateKey, error) {
-	block, _ := pem.Decode([]byte(privatePem))
-	if block == nil {
-		return nil, errors.New("failed to parse PEM block containing the key")
-	}
-	pri, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		return nil, err
-	}
-	return pri, nil
+	return crypt.GenerateRsaPrivateKeyFromPemString(k.String())
 }

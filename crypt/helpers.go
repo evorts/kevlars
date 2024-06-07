@@ -7,7 +7,13 @@
 
 package crypt
 
-import "bytes"
+import (
+	"bytes"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"errors"
+)
 
 func pkcs5Padding(ciphertext []byte, blockSize int) []byte {
 	padding := blockSize - len(ciphertext)%blockSize
@@ -37,4 +43,16 @@ func pkcs7UnPadding(ciphertext []byte) []byte {
 	buf := make([]byte, padding)
 	copy(buf, ciphertext[:padding])
 	return buf
+}
+
+func GenerateRsaPrivateKeyFromPemString(privatePem string) (*rsa.PrivateKey, error) {
+	block, _ := pem.Decode([]byte(privatePem))
+	if block == nil {
+		return nil, errors.New("failed to parse PEM block containing the key")
+	}
+	pri, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return pri, nil
 }
