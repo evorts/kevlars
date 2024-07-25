@@ -9,9 +9,7 @@ package config
 
 import (
 	"github.com/evorts/kevlars/common"
-	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
-	"os"
 	"time"
 )
 
@@ -34,6 +32,7 @@ type Manager interface {
 	GetStringSlice(key string) []string
 	GetStringSliceOrElse(key string, orElse []string) []string
 	GetMapArray(key string) []map[string]interface{}
+	GetMapArrayOrElse(key string, orElse []map[string]interface{}) []map[string]interface{}
 	GetTime(key string) time.Time
 	GetDuration(key string) time.Duration
 	GetDurationOrElse(key string, elseValue time.Duration) time.Duration
@@ -50,8 +49,9 @@ type Provider interface {
 }
 
 type configManager struct {
-	providers []Provider
-	v         *viper.Viper
+	providers  []Provider
+	v          *viper.Viper
+	stringVars StringVars
 }
 
 func (c *configManager) UnmarshalTo(key string, to interface{}) error {
@@ -108,9 +108,13 @@ func (c *configManager) GetStringMapStringOrElse(key string, elseValue map[strin
 }
 
 func (c *configManager) GetMapArray(key string) []map[string]interface{} {
+	return c.GetMapArrayOrElse(key, make([]map[string]interface{}, 0))
+}
+
+func (c *configManager) GetMapArrayOrElse(key string, elseValue []map[string]interface{}) []map[string]interface{} {
 	var arrMap []map[string]interface{}
 	if err := c.UnmarshalTo(key, &arrMap); err != nil {
-		return make([]map[string]interface{}, 0)
+		return elseValue
 	}
 	return arrMap
 }
@@ -183,93 +187,57 @@ func (c *configManager) AllSettings() map[string]interface{} {
 }
 
 func (c *configManager) Init() error {
-	// load .env file
-	err := godotenv.Load(func() string {
-		if v := os.Getenv("ENV_FILE"); len(v) > 0 {
-			return v
-		}
-		return ".env"
-	}())
-	if err != nil {
-		// if failed during load .env file -- there are 2 reasons: invalid format or file not exist
-		// thus fallback to default values
-		if v := os.Getenv("CONFIG_LOCAL_NAME"); len(v) < 1 {
-			_ = os.Setenv("CONFIG_LOCAL_NAME", "config.yaml")
-		}
-		if v := os.Getenv("SECRET_LOCAL_NAME"); len(v) < 1 {
-			_ = os.Setenv("SECRET_LOCAL_NAME", "secrets.yaml")
-		}
-		if v := os.Getenv("CONFIG_REMOTE_TYPE"); len(v) < 1 {
-			_ = os.Setenv("CONFIG_REMOTE_TYPE", TypeYaml.String())
-		}
-		if v := os.Getenv("SECRET_REMOTE_TYPE"); len(v) < 1 {
-			_ = os.Setenv("SECRET_REMOTE_TYPE", TypeYaml.String())
-		}
-	}
+	c.loadEnv()
 	// container configuration in dev, staging or production should be first class citizen
-	envConfigRemoteAddr := os.Getenv("CONFIG_REMOTE_ADDR")
-	envConfigRemoteName := os.Getenv("CONFIG_REMOTE_NAME")
-	envConfigRemoteType := func() string {
-		if v := os.Getenv("CONFIG_REMOTE_TYPE"); len(v) > 0 {
-			return v
-		}
-		return TypeYaml.String()
-	}()
-	envSecretRemoteAddr := os.Getenv("SECRET_REMOTE_ADDR")
-	envSecretRemoteName := os.Getenv("SECRET_REMOTE_NAME")
-	envSecretRemoteType := func() string {
-		if v := os.Getenv("SECRET_REMOTE_TYPE"); len(v) > 0 {
-			return v
-		}
-		return TypeYaml.String()
-	}()
-	envRemoteProvider := func() string {
-		if v := os.Getenv("REMOTE_PROVIDER"); len(v) > 0 {
-			return v
-		}
-		return RemoteProviderNone.String()
-	}()
-	if (len(envConfigRemoteAddr) > 0 && len(envSecretRemoteAddr) > 0) || os.Getenv("USE_CONFIG") == "remote" {
-		if envRemoteProvider == RemoteProviderGSM.String() {
-			c.providers = append(c.providers,
-				NewGoogleSecretManager(envConfigRemoteAddr, envConfigRemoteName, envConfigRemoteType),
-				NewGoogleSecretManager(envSecretRemoteAddr, envSecretRemoteName, envSecretRemoteType),
-			)
-		} else {
-			c.providers = append(
-				c.providers,
-				NewRemote(envRemoteProvider, envConfigRemoteAddr, envConfigRemoteType),
-				NewRemote(envRemoteProvider, envSecretRemoteAddr, envSecretRemoteType),
-			)
-		}
-	} else {
-		c.providers = append(c.providers,
-			NewConfigLocal(
-				os.Getenv("CONFIG_LOCAL_NAME"),
-				func() string {
-					if v := os.Getenv("CONFIG_LOCAL_TYPE"); len(v) > 0 {
-						return v
-					}
-					return TypeYaml.String()
-				}(),
-			),
-			NewConfigLocal(
-				os.Getenv("SECRET_LOCAL_NAME"),
-				func() string {
-					if v := os.Getenv("SECRET_LOCAL_TYPE"); len(v) > 0 {
-						return v
-					}
-					return TypeYaml.String()
-				}(),
-			),
-		)
+	ev := c.populateEnvVars()
+	switch true {
+	case (len(ev.remote.configAddress) > 0 && len(ev.remote.secretAddress) > 0) ||
+		ev.useConfig.value == UseConfigRemote:
+		c.providers = append(
+			c.providers, c.loadRemoteProvider(
+				RemoteProvider(ev.remote.providerName),
+				remoteProviderItem{
+					address: ev.remote.configAddress,
+					providerItem: &providerItem{
+						name:  ev.remote.configName,
+						ctype: ev.remote.configType,
+					},
+				},
+				remoteProviderItem{
+					address: ev.remote.secretAddress,
+					providerItem: &providerItem{
+						name:  ev.remote.secretName,
+						ctype: ev.remote.secretType,
+					},
+				})...)
+	case ev.useConfig.value == UseConfigDynamic:
+		c.providers = append(c.providers, c.loadDynamicProviders(ev)...)
+
+	// local config file and string var
+	default:
+		c.providers = append(
+			c.providers, c.loadLocalProvider(
+				LocalProvider(ev.local.providerName),
+				localProviderItem{
+					providerItem: &providerItem{
+						name:  ev.local.configName,
+						ctype: ev.local.configType,
+					},
+					stringVars: c.stringVars,
+				},
+				localProviderItem{
+					providerItem: &providerItem{
+						name:  ev.local.secretName,
+						ctype: ev.local.secretType,
+					},
+				})...)
 	}
 	c.v = viper.New()
 	for _, provider := range c.providers {
-		if err = provider.Init(); err != nil {
+		if err := provider.Init(); err != nil {
 			return err
 		}
-		if err = c.v.MergeConfigMap(provider.GetData()); err != nil {
+		if err := c.v.MergeConfigMap(provider.GetData()); err != nil {
 			return err
 		}
 	}
@@ -283,6 +251,10 @@ func (c *configManager) MustInit() Manager {
 	return c
 }
 
-func New() Manager {
-	return &configManager{providers: make([]Provider, 0)}
+func New(opts ...common.Option[configManager]) Manager {
+	c := &configManager{providers: make([]Provider, 0)}
+	for _, opt := range opts {
+		opt.Apply(c)
+	}
+	return c
 }

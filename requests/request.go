@@ -48,7 +48,7 @@ func IsHttpError(httpCode int) bool {
 
 // IdEcho get request id from echo context
 func IdEcho(ec echo.Context) string {
-	return rules.WhenTrueR1(eval.IsNil(ec.Get(ContextRequestId.String())), func() string {
+	return rules.WhenTrueRE1(eval.IsNil(ec.Get(ContextRequestId.String())), func() string {
 		return ""
 	}, func() string {
 		return ec.Get(ContextRequestId.String()).(string)
@@ -79,7 +79,7 @@ func IdEchoUidWithSuffix(ec echo.Context, suffix string) string {
 
 // ClientIdEcho get client id from echo context
 func ClientIdEcho(ec echo.Context) string {
-	return rules.WhenTrueR1(eval.IsNil(ec.Get(ContextClientId.String())), func() string {
+	return rules.WhenTrueRE1(eval.IsNil(ec.Get(ContextClientId.String())), func() string {
 		return ""
 	}, func() string {
 		return ec.Get(ContextClientId.String()).(string)
@@ -88,7 +88,7 @@ func ClientIdEcho(ec echo.Context) string {
 
 // Id get request id from context
 func Id(ctx context.Context) string {
-	return rules.WhenTrueR1(eval.IsNil(ctx.Value(ContextRequestId)), func() string {
+	return rules.WhenTrueRE1(eval.IsNil(ctx.Value(ContextRequestId)), func() string {
 		return ""
 	}, func() string {
 		return ctx.Value(ContextRequestId).(string)
@@ -114,7 +114,7 @@ func IdUidWithSuffix(ctx context.Context, suffix string) string {
 
 // ClientId get client id from context
 func ClientId(ctx context.Context) string {
-	return rules.WhenTrueR1(eval.IsNil(ctx.Value(ContextClientId)), func() string {
+	return rules.WhenTrueRE1(eval.IsNil(ctx.Value(ContextClientId)), func() string {
 		return ""
 	}, func() string {
 		return ctx.Value(ContextClientId).(string)

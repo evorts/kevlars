@@ -25,7 +25,7 @@ packages:
   github.com/evorts/kevlars/config:
     config:
       all: False
-      include-regex: ".*Manager$"
+      include-regex: ".*(Manager|Provider)$"
       recursive: True
       filename: "mock_{{.InterfaceNameLower}}.go"
       dir: ./mocks/{{ replaceAll .InterfaceDirRelative "internal" "internal_"}}

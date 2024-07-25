@@ -91,7 +91,7 @@ func (m *valkeyManager) Connect(ctx context.Context) error {
 }
 
 func (m *valkeyManager) spanName(v string) string {
-	return rules.WhenTrueR1(len(m.scope) > 0, func() string {
+	return rules.WhenTrueRE1(len(m.scope) > 0, func() string {
 		return m.scope + ".inmemory." + v
 	}, func() string {
 		return "inmemory." + v

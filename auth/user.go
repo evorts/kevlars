@@ -391,7 +391,7 @@ func (m *userManager) DisabledAccessByIds(ctx context.Context, ids ...int) error
 
 func NewUserAuthManager(dbm db.Manager, opts ...common.Option[userManager]) UserManager {
 	m := &userManager{
-		dbw: dbm, dbr: dbm, driver: rules.WhenTrueR1(dbm == nil, func() db.SupportedDriver {
+		dbw: dbm, dbr: dbm, driver: rules.WhenTrueRE1(dbm == nil, func() db.SupportedDriver {
 			return db.DriverPostgreSQL
 		}, func() db.SupportedDriver {
 			return dbm.Driver()

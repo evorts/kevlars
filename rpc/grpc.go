@@ -8,7 +8,6 @@
 package rpc
 
 import (
-	"context"
 	"crypto/tls"
 	"github.com/evorts/kevlars/logger"
 	"github.com/evorts/kevlars/rules"
@@ -68,7 +67,6 @@ func (g *grpcClientManager) connect() error {
 	rules.WhenTrue(g.logRequestPayload, func() {
 		unaryInterceptors = append(unaryInterceptors, GrpcLogRequestPayloadInterceptor(g.logRequestPayloadInJson, g.log.InfoWithProps))
 	})
-	ctx := context.Background()
 	rules.WhenTrue(g.timeout != nil && g.timeout.Milliseconds() > 0, func() {
 		unaryInterceptors = append(unaryInterceptors, GrpcTimeoutInterceptor(*g.timeout))
 	})
@@ -78,7 +76,7 @@ func (g *grpcClientManager) connect() error {
 	rules.WhenTrue(len(unaryInterceptors) > 0, func() {
 		opts = append(opts, grpc.WithChainUnaryInterceptor(unaryInterceptors...))
 	})
-	g.conn, err = grpc.DialContext(ctx, g.server, opts...)
+	g.conn, err = grpc.NewClient(g.server, opts...)
 	if err != nil {
 		return err
 	}

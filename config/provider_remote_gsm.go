@@ -13,28 +13,29 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/evorts/kevlars/common"
 	"google.golang.org/api/option"
 	"gopkg.in/yaml.v3"
 	"hash/crc32"
 	"strings"
 )
 
-type googleSecret struct {
+type gsmProvider struct {
 	projectId    string
 	resourceName string
-	configType   string
+	configType   Type
 	data         map[string]interface{}
 
 	jsonCredFile string
 	jsonCred     []byte
 }
 
-func (g *googleSecret) GetData() map[string]interface{} {
+func (g *gsmProvider) GetData() map[string]interface{} {
 	return g.data
 }
 
 // Init initialize google secret manager and populate into conf object
-func (g *googleSecret) Init() error {
+func (g *gsmProvider) Init() error {
 	ctx := context.Background()
 	var opts = make([]option.ClientOption, 0)
 	if len(g.jsonCredFile) > 0 {
@@ -71,22 +72,22 @@ func (g *googleSecret) Init() error {
 	if checksum != *result.Payload.DataCrc32C {
 		return fmt.Errorf("data corruption detected")
 	}
-	if g.configType == "json" {
+	if g.configType == TypeJson {
 		return json.Unmarshal(result.Payload.Data, &g.data)
 	}
 	return yaml.Unmarshal(result.Payload.Data, &g.data)
 }
 
-// NewGoogleSecretManager instantiate google secret manager with the given projectId and secret name
+// NewRemoteGSM instantiate google secret manager with the given projectId and secret name
 // The resource name of the [Secret][google.cloud.secretmanager.v1.Secret], in the format `projects/*/secrets/*`.
-func NewGoogleSecretManager(projectId, resourceName, configType string, opts ...GsmOption) Provider {
-	p := &googleSecret{
+func NewRemoteGSM(projectId, resourceName string, configType Type, opts ...common.Option[gsmProvider]) Provider {
+	p := &gsmProvider{
 		projectId:    projectId,
 		resourceName: resourceName,
 		configType:   configType,
 	}
 	for _, opt := range opts {
-		opt.apply(p)
+		opt.Apply(p)
 	}
 	return p
 }

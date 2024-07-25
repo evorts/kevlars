@@ -62,7 +62,7 @@ type googlePubsubActOption struct {
 }
 
 func (g *googlePubsubManager) spanName(v string) string {
-	return rules.WhenTrueR1(len(g.scope) > 0, func() string {
+	return rules.WhenTrueRE1(len(g.scope) > 0, func() string {
 		return g.scope + "." + v
 	}, func() string {
 		return v

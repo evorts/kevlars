@@ -9,28 +9,28 @@ package config
 
 import "github.com/spf13/viper"
 
-type configRemote struct {
-	provider   string
-	address    string
-	configPath string
-	configType string
+type remoteProvider struct {
+	provider string
+	address  string
+	path     string
+	cType    Type
 
 	v *viper.Viper
 }
 
-func (c *configRemote) Init() error {
+func (c *remoteProvider) Init() error {
 	c.v = viper.New()
-	if err := c.v.AddRemoteProvider(c.provider, c.address, c.configPath); err != nil {
+	if err := c.v.AddRemoteProvider(c.provider, c.address, c.path); err != nil {
 		return err
 	}
-	c.v.SetConfigType(c.configType)
+	c.v.SetConfigType(c.cType.String())
 	return c.v.ReadRemoteConfig()
 }
 
-func (c *configRemote) GetData() map[string]interface{} {
+func (c *remoteProvider) GetData() map[string]interface{} {
 	return c.v.AllSettings()
 }
 
-func NewRemote(provider, address, path string) Provider {
-	return &configRemote{provider: provider, address: address, configPath: path}
+func NewRemote(provider, address, path string, configType Type) Provider {
+	return &remoteProvider{provider: provider, address: address, path: path, cType: configType}
 }

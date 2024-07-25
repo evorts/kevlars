@@ -225,14 +225,14 @@ func (m *manager) wrap(ctx context.Context, path string, f func(newCtx context.C
 func (m *manager) parseReturnWithContext(ctx context.Context, rs *resty.Response, e error) (httpCode int, err error) {
 	clientId := requests.ClientId(ctx)
 	reqId := requests.Id(ctx)
-	reqAccept := rules.WhenTrueR1(rs != nil && rs.Request != nil, func() string {
+	reqAccept := rules.WhenTrueRE1(rs != nil && rs.Request != nil, func() string {
 		return rs.Request.Header.Get("Accept")
 	}, func() string { return "" })
-	reqContentType := rules.WhenTrueR1(rs != nil && rs.Request != nil, func() string {
+	reqContentType := rules.WhenTrueRE1(rs != nil && rs.Request != nil, func() string {
 		return rs.Request.Header.Get("Content-Type")
 	}, func() string { return "" })
-	respAccept := rules.WhenTrueR1(rs != nil, func() string { return rs.Header().Get("Accept") }, func() string { return "" })
-	respContentType := rules.WhenTrueR1(rs != nil, func() string { return rs.Header().Get("Content-Type") }, func() string { return "" })
+	respAccept := rules.WhenTrueRE1(rs != nil, func() string { return rs.Header().Get("Accept") }, func() string { return "" })
+	respContentType := rules.WhenTrueRE1(rs != nil, func() string { return rs.Header().Get("Content-Type") }, func() string { return "" })
 	traceMap := map[string]interface{}{
 		"http_code":         httpCode,
 		"client_id":         clientId,
@@ -244,22 +244,22 @@ func (m *manager) parseReturnWithContext(ctx context.Context, rs *resty.Response
 	}
 	m.log.WhenErrorWithProps(e, traceMap)
 	m.log.InfoWithProps(traceMap, "parse return with context")
-	method := rules.WhenTrueR1(rs != nil && rs.Request != nil, func() string {
+	method := rules.WhenTrueRE1(rs != nil && rs.Request != nil, func() string {
 		return rs.Request.Method
 	}, func() string {
 		return "unknown"
 	})
-	url := rules.WhenTrueR1(rs != nil && rs.Request != nil, func() string {
+	url := rules.WhenTrueRE1(rs != nil && rs.Request != nil, func() string {
 		return rs.Request.URL
 	}, func() string {
 		return ""
 	})
-	payload := rules.WhenTrueR1(rs != nil && rs.Request != nil, func() interface{} {
+	payload := rules.WhenTrueRE1(rs != nil && rs.Request != nil, func() interface{} {
 		return rs.Request.Body
 	}, func() interface{} {
 		return nil
 	})
-	errString := rules.WhenTrueR1(e != nil, func() string {
+	errString := rules.WhenTrueRE1(e != nil, func() string {
 		return e.Error()
 	}, func() string {
 		return ""
@@ -283,7 +283,7 @@ func (m *manager) parseReturnWithContext(ctx context.Context, rs *resty.Response
 			"req_id":    reqId,
 			"path":      rs.Request.URL,
 			"method":    method,
-			"body": rules.WhenTrueR1(rs != nil, func() string {
+			"body": rules.WhenTrueRE1(rs != nil, func() string {
 				return rs.String()
 			}, func() string {
 				return ""

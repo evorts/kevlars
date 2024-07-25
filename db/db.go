@@ -134,7 +134,7 @@ func wrap[T any](m *manager, ctx context.Context, name, q string, f func(newCtx 
 }
 
 func (m *manager) spanName(v string) string {
-	return rules.WhenTrueR1(len(m.scope) > 0, func() string {
+	return rules.WhenTrueRE1(len(m.scope) > 0, func() string {
 		return m.scope + ".db." + v
 	}, func() string {
 		return "db." + v

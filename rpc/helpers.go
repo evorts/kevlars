@@ -75,7 +75,7 @@ func GrpcMetricInterceptor(metric telemetry.MetricsManager) grpc.UnaryClientInte
 
 func GrpcLogRequestPayloadInterceptor(inJson bool, logWithProps func(props map[string]interface{}, messages ...interface{})) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		v := rules.WhenTrueR1(inJson, func() interface{} {
+		v := rules.WhenTrueRE1(inJson, func() interface{} {
 			vv, _ := json.Marshal(req)
 			return string(vv)
 		}, func() interface{} {

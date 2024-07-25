@@ -57,7 +57,7 @@ func EchoLogger(l logger.Manager, pathNotLogged ...string) echo.MiddlewareFunc {
 				"userAgent":   clientUserAgent,
 				"accept":      req.Header.Get("Accept"),
 				"contentType": req.Header.Get("Content-Type"),
-				"clientID": rules.WhenTrueR1[string](clientID == nil, func() string { return "<undefined>" }, func() string {
+				"clientID": rules.WhenTrueRE1[string](clientID == nil, func() string { return "<undefined>" }, func() string {
 					if v, ok := clientID.(string); ok {
 						return v
 					}

@@ -648,7 +648,7 @@ func NewClientManager(dbm db.Manager, opts ...common.Option[clientManager]) Clie
 	m := &clientManager{
 		dbw: dbm,
 		dbr: dbm,
-		driver: rules.WhenTrueR1(dbm == nil, func() db.SupportedDriver {
+		driver: rules.WhenTrueRE1(dbm == nil, func() db.SupportedDriver {
 			return db.DriverPostgreSQL
 		}, func() db.SupportedDriver {
 			return dbm.Driver()

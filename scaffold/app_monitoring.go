@@ -144,7 +144,7 @@ func (app *Application) healthDependenciesEchoHandler(c echo.Context) error {
 		for dbk, dbm := range app.dbs {
 			result[DbKey.String()] = append(result[DbKey.String()], deps{
 				name:   dbk,
-				status: rules.WhenTrueR1(dbm.Ping() == nil, func() string { return health.OK }, func() string { return health.NOK }),
+				status: rules.WhenTrueRE1(dbm.Ping() == nil, func() string { return health.OK }, func() string { return health.NOK }),
 			})
 		}
 	})
@@ -152,7 +152,7 @@ func (app *Application) healthDependenciesEchoHandler(c echo.Context) error {
 		for ck, cm := range app.inMemories {
 			result[InMemoryKey.String()] = append(result[InMemoryKey.String()], deps{
 				name:   ck,
-				status: rules.WhenTrueR1(cm.Ping() == nil, func() string { return health.OK }, func() string { return health.NOK }),
+				status: rules.WhenTrueRE1(cm.Ping() == nil, func() string { return health.OK }, func() string { return health.NOK }),
 			})
 		}
 	})

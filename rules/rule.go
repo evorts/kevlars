@@ -18,7 +18,7 @@ func WhenTrueE(expression bool, run F, orElse F) {
 	}
 }
 
-func WhenTrueR1[T any](expression bool, run FR1[T], orElse FR1[T]) T {
+func WhenTrueRE1[T any](expression bool, run FR1[T], orElse FR1[T]) T {
 	if expression {
 		return run()
 	}
@@ -28,7 +28,7 @@ func WhenTrueR1[T any](expression bool, run FR1[T], orElse FR1[T]) T {
 	panic("or else is not defined")
 }
 
-func WhenTrueR2[T1 any, T2 any](expression bool, run FR2[T1, T2], orElse FR2[T1, T2]) (T1, T2) {
+func WhenTrueRE2[T1 any, T2 any](expression bool, run FR2[T1, T2], orElse FR2[T1, T2]) (T1, T2) {
 	if expression {
 		return run()
 	}
@@ -90,7 +90,14 @@ func WhenEmptyE[T any](v *T, run F, orElse F) {
 	}
 }
 
-func WhenEmptyR1[T any](v *T, run FR1[T], orElse FR1[T]) T {
+func WhenEmptyR[T any](v T, run FR1[T]) T {
+	if eval.IsEmpty(v) {
+		return run()
+	}
+	return v
+}
+
+func WhenEmptyRE1[T any](v *T, run FR1[T], orElse FR1[T]) T {
 	if eval.IsEmpty(v) {
 		return run()
 	}
@@ -114,7 +121,7 @@ func WhenNotEmptyE[T any](v *T, run F, orElse F) {
 	}
 }
 
-func WhenNotEmptyR1[T any](v *T, run FR1[T], orElse FR1[T]) T {
+func WhenNotEmptyRE1[T any](v *T, run FR1[T], orElse FR1[T]) T {
 	if !eval.IsEmpty(v) {
 		return run()
 	}
@@ -138,7 +145,7 @@ func WhenSliceNotEmptyE[T any](items []T, run F, orElse F) {
 	run()
 }
 
-func WhenSliceNotEmptyR1[IT any, T1 any](items []IT, run FR1[T1], orElse FR1[T1]) T1 {
+func WhenSliceNotEmptyRE1[IT any, T1 any](items []IT, run FR1[T1], orElse FR1[T1]) T1 {
 	if items == nil || len(items) == 0 {
 		if orElse != nil {
 			return orElse()
